@@ -1,0 +1,41 @@
+LUMEN Germany Market Entry Simulator — business summary
+
+Purpose
+- An interactive decision-support tool for evaluating possible go-to-market scenarios for LUMEN’s functional beverage in Germany.
+- It is designed to make the trade-off between premium positioning and fast payback explicit.
+- It is indicative, not an optimisation engine or a precise forecast: results depend on the selected inputs and model assumptions.
+
+User-controlled decision factors
+- Retail price: predefined candidate prices (€1.79, €2.19 and €2.59) or a custom value.
+- Marketing-budget mix: DTC Online, Retail/Grocery and Gym & Office.
+- Demand scenario: base, +20% acceptance, or −20% acceptance.
+- Launch month: adjusts demand for seasonality and is viewed alongside competitor promotional activity.
+
+Model outputs
+- Expected volume, revenue, contribution, blended contribution margin, payback period and LTV:CAC.
+- Channel-level acceptance, net price, unit contribution, expected volume, revenue and contribution.
+- Scenario comparison and launch-timing views.
+
+Datasets used directly by the current model
+- price_test_results.csv — Supplies acceptance by price and channel, net price to LUMEN, unit contribution and contribution margin. It drives price, volume, revenue, contribution and margin calculations.
+- marketing_funnel_monthly.csv — The most recent six rows provide average CAC and LTV. These drive payback and LTV:CAC.
+- market_context.csv — The 2026 Energy / focus market-size figure is used as the total-addressable-market proxy for expected volume.
+- seasonality_and_weather.csv — The selected month’s seasonality index adjusts acceptance and, therefore, volume, revenue and contribution.
+- competitor_price_history.csv — Counts promotions by month for the launch-timing visual and qualitative competitive-context assessment.
+
+Datasets loaded but not yet applied in the current calculation
+- channel_economics.csv — Contains channel economics; the current calculation uses the equivalent price/channel outcomes already supplied in price_test_results.csv instead.
+- cost_breakdown.csv — Provides COGS, but the extracted COGS value is not subsequently used in the calculation.
+
+Datasets available for decision support but not yet used in the simulator logic
+- customer_quotes.csv — Qualitative product, taste, availability and price objections; useful for proposition and message design.
+- customer_survey.csv — Segment, city, channel preference, purchase intent, frequency and price-sensitivity inputs; useful for targeting and launch sequencing.
+- price_sensitivity_survey.csv — Price-threshold responses by segment; useful for willingness-to-pay and price-architecture analysis.
+- competitor_prices_by_channel.csv — Channel-specific competitor price positioning; useful for shelf-price and channel strategy.
+- historical_sales_weekly.csv — Historical demand and trend patterns; useful for forecast calibration and seasonal validation.
+
+Recommendation and financial guardrail
+- Use €2.19 as the initial recommended price point. It preserves materially stronger acceptance than €2.59 (51.7% versus 26.7%) while lifting unit contribution materially over €1.79: €1.16 versus €0.77 in DTC, €0.63 versus €0.40 in retail, and €1.13 versus €0.81 in Gym & Office.
+- Treat payback within 22 months as a launch gate. This makes the simulator a decision screen rather than a catalogue of possible outcomes.
+- The current model does not meet that gate at €2.19 by default: it calculates approximately 29.4 months with the default 40% DTC / 40% retail / 20% Gym & Office mix. Even an all-DTC mix is approximately 23.9 months using the model’s current average CAC of €27.72.
+- Therefore, recommend €2.19 conditionally: launch only with a credible plan to improve CAC and/or blended unit contribution. At €2.19, the all-DTC case requires CAC at or below €25.52 to meet the 22-month gate; the default mix requires CAC at or below €20.72.
