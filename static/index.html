@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LUMEN Germany Market Entry Simulator</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root { color-scheme: light; --ink:#15223a; --muted:#60708a; --card:#fff; --line:#dbe4ef; --blue:#1565c0; --bg:#f3f7fb; }
+    * { box-sizing:border-box; } body { margin:0; font:16px system-ui,-apple-system,sans-serif; color:var(--ink); background:var(--bg); }
+    header { padding:32px max(24px,calc((100vw - 1180px)/2)); background:linear-gradient(135deg,#0d3b66,#1d70a2); color:#fff; }
+    h1 { margin:0 0 8px; font-size:clamp(1.7rem,4vw,2.45rem); } header p { margin:0; max-width:720px; opacity:.92; }
+    main { display:grid; grid-template-columns:280px 1fr; gap:24px; max-width:1180px; margin:24px auto; padding:0 20px 40px; }
+    aside, section { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 3px 12px #19324d0d; }
+    aside { height:max-content; padding:20px; position:sticky; top:20px; } h2 { margin:0 0 16px; font-size:1.1rem; }
+    label { display:block; margin:17px 0 6px; font-weight:650; font-size:.9rem; } input, select { width:100%; padding:10px; border:1px solid #b8c6d8; border-radius:7px; font:inherit; }
+    .hint { margin:5px 0 0; color:var(--muted); font-size:.79rem; } button { width:100%; margin-top:22px; padding:11px; color:#fff; background:var(--blue); border:0; border-radius:7px; cursor:pointer; font-weight:700; font:inherit; }
+    button:hover { background:#0d4e9a; } #notice { min-height:20px; color:#a33; font-size:.84rem; margin-top:12px; }
+    .content { display:grid; gap:20px; } .metrics { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:12px; }
+    .metric { padding:16px; background:#fff; border:1px solid var(--line); border-radius:12px; } .metric span { display:block; color:var(--muted); font-size:.8rem; } .metric strong { display:block; margin-top:6px; font-size:1.28rem; }
+    section { padding:20px; overflow:auto; } .charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; } .chart { min-height:300px; }
+    table { width:100%; border-collapse:collapse; white-space:nowrap; } th,td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); } th { font-size:.78rem; color:var(--muted); }
+    .insights { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; } .insight { padding:14px; border-radius:9px; background:#eef7ff; }
+    footer { text-align:center; color:var(--muted); padding:0 20px 28px; font-size:.85rem; }
+    @media(max-width:800px) { main { grid-template-columns:1fr; } aside { position:static; } .metrics { grid-template-columns:repeat(2,1fr); } .charts { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header><h1>🥤 LUMEN Germany Market Entry Simulator</h1><p>Explore the trade-offs between price, channel mix, seasonal timing, and market outcomes.</p></header>
+  <main>
+    <aside>
+      <h2>Simulation controls</h2>
+      <label for="price">Price point</label><select id="price"></select>
+      <label for="dtc">DTC Online (%)</label><input id="dtc" type="number" min="0" max="100" value="40">
+      <label for="retail">Retail/Grocery (%)</label><input id="retail" type="number" min="0" max="100" value="40">
+      <label for="gym">Gym &amp; Office (%)</label><input id="gym" type="number" min="0" max="100" value="20">
+      <p class="hint">Allocations are normalized when they do not add up to 100%.</p>
+      <label for="month">Launch month</label><select id="month"></select>
+      <button id="run">Update simulation</button><div id="notice"></div>
+    </aside>
+    <div class="content">
+      <div class="metrics" id="metrics"></div>
+      <section><h2>Channel performance</h2><table><thead><tr><th>Channel</th><th>Allocation</th><th>Acceptance</th><th>Net price</th><th>Unit contribution</th><th>Expected volume</th><th>Revenue</th><th>Contribution</th></tr></thead><tbody id="breakdown"></tbody></table></section>
+      <section><h2>Trade-offs</h2><div class="charts"><div class="chart" id="contributionChart"></div><div class="chart" id="allocationChart"></div></div></section>
+      <section><h2>Launch timing</h2><div class="chart" id="timingChart"></div><div class="insights" id="insights"></div></section>
+    </div>
+  </main>
+  <footer>LUMEN Germany Market Entry Simulator · ATELIA × ESCP Case Competition</footer>
+  <script>
+    const eur = new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const number = new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
+    let timing;
+    const value = id => Number(document.getElementById(id).value);
+    const input = () => ({price:value('price'),dtc_pct:value('dtc'),retail_pct:value('retail'),gym_pct:value('gym'),launch_month:value('month')});
+    async function getJSON(url, options) { const response = await fetch(url, options); if (!response.ok) throw new Error((await response.json()).detail || 'Request failed'); return response.json(); }
+    function metric(label, value) { return `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`; }
+    function render(result) {
+      document.getElementById('notice').textContent = result.allocation_normalized ? 'Channel allocations were normalized to 100% for the calculation.' : '';
+      document.getElementById('metrics').innerHTML = [
+        metric('Price point', `€${result.price_eur.toFixed(2)}`), metric('Expected contribution', eur.format(result.total_contribution)),
+        metric('Expected revenue', eur.format(result.total_revenue)), metric('Contribution margin', `${result.total_margin_pct.toFixed(1)}%`),
+        metric('Expected volume', `${number.format(result.total_units)}K units`), metric('Weighted acceptance', `${(result.weighted_acceptance*100).toFixed(1)}%`),
+        metric('Payback period', `${result.payback_months.toFixed(1)} months`), metric('LTV:CAC ratio', result.ltv_cac_ratio.toFixed(2))
+      ].join('');
+      document.getElementById('breakdown').innerHTML = result.channel_breakdown.map(row => `<tr><td>${row.channel}</td><td>${row.allocation_pct.toFixed(1)}%</td><td>${row.acceptance_pct.toFixed(1)}%</td><td>€${row.net_price_eur.toFixed(2)}</td><td>€${row.unit_contribution_eur.toFixed(2)}</td><td>${row.expected_units_k.toFixed(1)}K</td><td>${eur.format(row.expected_revenue_eur)}</td><td>${eur.format(row.expected_contribution_eur)}</td></tr>`).join('');
+      const channels = result.channel_breakdown.map(x=>x.channel);
+      Plotly.react('contributionChart',[{x:channels,y:result.channel_breakdown.map(x=>x.expected_contribution_eur),type:'bar',marker:{color:'#3c8dbc'}}],{title:'Contribution by channel',margin:{t:45,l:60,r:10,b:70},yaxis:{tickprefix:'€'}} ,{responsive:true});
+      Plotly.react('allocationChart',[{labels:channels,values:result.channel_breakdown.map(x=>x.allocation_pct),type:'pie',hole:.4}],{title:'Marketing-budget allocation',margin:{t:45,l:10,r:10,b:10}},{responsive:true});
+      renderTiming(value('month'));
+    }
+    function renderTiming(selected) {
+      Plotly.react('timingChart',[{x:timing.months,y:timing.seasonality,name:'Seasonality index',mode:'lines+markers',line:{color:'#1565c0'}},{x:timing.months,y:timing.promotions,name:'Competitor promotions',type:'bar',yaxis:'y2',marker:{color:'#f0a43a'}}],{title:'Seasonal demand and competitor activity',margin:{t:45,l:50,r:50,b:40},yaxis:{title:'Seasonality (100 = average)'},yaxis2:{title:'Promotions',overlaying:'y',side:'right'},barmode:'overlay',legend:{orientation:'h'}},{responsive:true});
+      const best = timing.seasonality.indexOf(Math.max(...timing.seasonality)); const quiet = timing.promotions.indexOf(Math.min(...timing.promotions)); const s = timing.seasonality[selected-1], p = timing.promotions[selected-1];
+      document.getElementById('insights').innerHTML = `<div class="insight"><strong>Peak demand month</strong><br>${timing.months[best]} (index ${timing.seasonality[best].toFixed(0)})</div><div class="insight"><strong>Lowest competitor activity</strong><br>${timing.months[quiet]} (${timing.promotions[quiet]} promotions)</div><div class="insight"><strong>Selected timing</strong><br>${timing.months[selected-1]}: demand index ${s.toFixed(0)}, ${p} competitor promotions</div>`;
+    }
+    async function update() { try { document.getElementById('run').disabled=true; const result = await getJSON('/api/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input())}); render(result); } catch(error) { document.getElementById('notice').textContent=error.message; } finally { document.getElementById('run').disabled=false; } }
+    async function boot() { const config = await getJSON('/api/config'); document.getElementById('price').innerHTML=config.prices.map(p=>`<option value="${p}" ${p===2.19?'selected':''}>€${p.toFixed(2)}</option>`).join(''); document.getElementById('month').innerHTML=config.months.map((m,i)=>`<option value="${i+1}" ${i===5?'selected':''}>${m}</option>`).join(''); timing=await getJSON('/api/launch-timing'); document.getElementById('run').addEventListener('click',update); update(); }
+    boot().catch(error => document.getElementById('notice').textContent=error.message);
+  </script>
+</body>
+</html>
