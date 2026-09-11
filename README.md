@@ -14,10 +14,7 @@ The tool enables users to test different strategies and see their impact on cont
 
 - Interactive price selection (predefined points or custom range)
 - Dynamic channel budget allocation (DTC Online, Retail/Grocery, Gym & Office)
-- Multiple Strategic Scenarios (Base Case, CMO Priority, CFO Priority, Balanced Approach, Aggressive Market Share, Conservative Profitability)
-- Competitive Response Modeling based on competitor price history
-- Sensitivity Analysis Dashboard with tornado diagrams
-- Break-even and ROI Calculator
+- Scenario testing (Base Case)
 - Real-time financial projections and key metrics
 - Visualizations showing trade-offs between different objectives
 - Detailed channel-by-channel breakdowns
@@ -88,23 +85,11 @@ To modify the simulation assumptions:
 ## Deployment
 
 The app can be deployed for free using:
-- [Streamlit Community Cloud](https://streamlit.io/cloud) (Recommended)
+- [Streamlit Community Cloud](https://streamlit.io/cloud)
 - Heroku
 - AWS, Azure, or Google Cloud platforms
 
-For detailed deployment instructions, platform-specific configurations, and troubleshooting tips, see the [DEPLOYMENT.md](DEPLOYMENT.md) file.
-
-**Quick Start for Streamlit Community Cloud:**
-1. Push your code to a GitHub repository
-2. Go to [share.streamlit.io](https://share.streamlit.io/)
-3. Click "New app" and select your repository
-4. Choose the main branch and `streamlit_app.py` as the main file
-5. Click "Deploy" - your app will be live in minutes!
-
-**Enhanced Deployment Features:**
-- Custom Streamlit theme (`.streamlit/config.toml`) for branded appearance
-- Heroku `Procfile` for easy deployment to Heroku platform
-- Dynamic port binding for cloud platform compatibility
+Simply push the repository to GitHub and connect it to Streamlit Cloud for instant deployment.
 
 ## Notes
 
