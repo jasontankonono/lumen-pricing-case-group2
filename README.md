@@ -40,17 +40,16 @@ The simulator integrates data from all 12 case exhibits:
    ```bash
    pip install -r requirements.txt
    ```
-3. Ensure you're in the project directory (where `main.py` is located)
+3. Ensure you're in the project directory (where `streamlit_app.py` is located)
 
 ## Usage
 
-Run the Vercel-compatible simulator locally with:
+Run the simulator with:
 ```bash
-pip install -r requirements.txt
-uvicorn main:app --reload
+streamlit run streamlit_app.py
 ```
 
-The application will be available at `http://localhost:8000`.
+The application will open in your default web browser at `http://localhost:8501`.
 
 ### How to Use
 
@@ -63,8 +62,7 @@ The application will be available at `http://localhost:8000`.
 
 ## Project Structure
 
-- `main.py`: FastAPI application and Vercel entrypoint
-- `static/index.html`: Browser-based interactive interface
+- `streamlit_app.py`: Main application code
 - `requirements.txt`: Python dependencies
 - `data/`: Folder containing all CSV data files
 - `DATA_ANALYSIS_FINDINGS.md`: Preliminary data analysis (for reference)
@@ -81,15 +79,17 @@ The application will be available at `http://localhost:8000`.
 
 To modify the simulation assumptions:
 - Modify TAM assumptions by changing the market segment used in the code
-- Adjust the interface controls in `static/index.html`
+- Adjust scenario multipliers in the sidebar controls
 - Edit channel definitions in the calculation functions
 
-## Deployment on Vercel
+## Deployment
 
-Vercel detects `main.py` and its FastAPI `app` automatically. Import this GitHub
-repository in Vercel and deploy with the project root set to the repository root.
-No `vercel.json` is required. The interactive browser interface calls the FastAPI
-routes at `/api/calculate` and `/api/launch-timing` on the same deployment.
+The app can be deployed for free using:
+- [Streamlit Community Cloud](https://streamlit.io/cloud)
+- Heroku
+- AWS, Azure, or Google Cloud platforms
+
+Simply push the repository to GitHub and connect it to Streamlit Cloud for instant deployment.
 
 ## Notes
 
