@@ -4,20 +4,33 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+from strategy_profiles import generate_strategy_recommendations, interpolate_price_data
 
 # Page configuration
 st.set_page_config(
-    page_title="LUMEN Germany Market Entry Simulator",
-    page_icon="🥤",
-    layout="wide"
+    page_title="LUMEN | Germany Entry Cockpit",
+    page_icon="L",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Title and description
-st.title("🥤 LUMEN Germany Market Entry Simulator")
 st.markdown("""
-Explore the trade-offs between price, channel mix, and market outcomes for LUMEN's entry into the German functional beverage market.
-Adjust the parameters below to see how different strategies impact contribution margin, revenue, and payback period.
-""")
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root { --navy:#102b3d; --teal:#0d6b68; --mint:#9ad8c0; --gold:#b99243; --coral:#d36d61; --cream:#f7f4ee; --paper:#fffdfa; --ink:#183244; --muted:#647582; --line:#dce4e1; }
+.stApp { background:var(--cream); color:var(--ink); font-family:Inter, "Avenir Next", sans-serif; }
+#MainMenu, footer { visibility:hidden; }.block-container { max-width:1440px; padding:2.4rem 3rem 4rem; }
+[data-testid="stSidebar"] { background:var(--navy); border-right:0; } [data-testid="stSidebar"] * { color:#edf5f3; }
+[data-testid="stSidebar"] .stRadio label { border-radius:8px; padding:.36rem .45rem; font-size:.84rem; } [data-testid="stSidebar"] .stRadio label:hover { background:rgba(154,216,192,.14); }
+[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] { background:var(--mint); } [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div, [data-testid="stSidebar"] .stNumberInput input { background:#18394b; border-color:rgba(255,255,255,.25); } [data-testid="stSidebar"] hr { border-color:rgba(255,255,255,.16); }
+.lumen-brand { display:flex; align-items:center; gap:.7rem; padding:.35rem 0 1.15rem; border-bottom:1px solid rgba(255,255,255,.16); }.lumen-mark { width:2rem; height:2rem; display:grid; place-items:center; border-radius:.55rem; background:#9ad8c0; color:#102b3d; font-weight:700; }.lumen-brand strong{letter-spacing:.09em;font-size:.9rem}.lumen-brand span{display:block;color:#b8cbd0;font-size:.72rem;margin-top:.1rem}.side-label,.eyebrow{color:#b99243!important;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:700}
+.hero { padding:1.55rem 1.8rem; margin:0 0 1.35rem; border:1px solid #c8ddd6; border-radius:1rem; background:#e8f3ef; }.hero h1{margin:.25rem 0;font-size:2.25rem;letter-spacing:-.05em;color:#102b3d}.hero p{max-width:760px;margin:.35rem 0 0;color:#526770}.hero .eyebrow{color:#0d6b68!important}
+h1,h2,h3 { color:#102b3d; letter-spacing:-.025em; } h2 { margin-top:1.2rem!important; } [data-testid="stMetric"] { padding:1rem; background:var(--paper); border:1px solid var(--line); border-radius:.8rem; box-shadow:0 3px 10px rgba(20,48,60,.035); } [data-testid="stMetricLabel"] { color:var(--muted); font-size:.75rem; } [data-testid="stMetricValue"] { color:var(--navy); font-size:1.45rem; }
+[data-baseweb="tab-list"] { gap:.35rem; border-bottom:1px solid var(--line); } [data-baseweb="tab"] { height:2.45rem; padding:0 .9rem; color:var(--muted); font-size:.8rem; } [aria-selected="true"][data-baseweb="tab"] { color:var(--teal); border-bottom-color:var(--teal)!important; }
+[data-testid="stDataFrame"], .stPlotlyChart { border:1px solid var(--line); border-radius:.8rem; background:var(--paper); padding:.25rem; box-shadow:0 3px 10px rgba(20,48,60,.025); }.stButton>button, .stDownloadButton>button { border:0; border-radius:.5rem; background:var(--teal); color:white; font-weight:600; }.stButton>button:hover,.stDownloadButton>button:hover { background:#095a57; color:white; }.summary-card { padding:1.3rem 1.5rem; border:1px solid #c8ddd6; border-radius:.85rem; background:#eef6f3; }.summary-card h3{color:var(--teal);margin:.2rem 0}.summary-card p{color:#526770;margin:.4rem 0}
+</style>
+<div class="hero"><div class="eyebrow">Market-entry decision cockpit</div><h1>LUMEN Germany pricing &amp; channel strategy</h1><p>Bring premium positioning, cash efficiency, and market-entry ambition into one credible CMO/CFO decision view.</p></div>
+""", unsafe_allow_html=True)
 
 # Load data functions
 @st.cache_data
@@ -75,14 +88,19 @@ tam_energy = market_df[(market_df['dimension_type'] == 'subcategory') &
                        (market_df['name'] == 'Energy / focus') &
                        (market_df['year'] == 2026)]['value'].values[0]
 
-# Sidebar for inputs
-st.sidebar.header("🎛️ Simulation Controls")
+# Sidebar navigation and controls
+st.sidebar.markdown('<div class="lumen-brand"><div class="lumen-mark">L</div><div><strong>LUMEN</strong><span>Germany entry cockpit</span></div></div>', unsafe_allow_html=True)
+st.sidebar.markdown('<p class="side-label">Navigate</p>', unsafe_allow_html=True)
+page = st.sidebar.radio("Navigate", ["Overview", "Channel Breakdown", "Trade-offs", "Scenario Comparison", "Launch Timing", "Business Summary", "About / Assumptions"], label_visibility="collapsed")
+st.sidebar.divider()
+st.sidebar.markdown('<p class="side-label">Live simulation</p>', unsafe_allow_html=True)
+st.sidebar.header("Decision inputs")
 
 # Price selection method
 price_method = st.sidebar.radio(
     "Price Selection Method",
     ["Predefined Price Points", "Custom Price Range"],
-    help="Choose between testing the three candidate prices or setting a custom price"
+    help="Custom prices are linearly interpolated from the validated €1.79, €2.19, and €2.59 survey results."
 )
 
 if price_method == "Predefined Price Points":
@@ -149,16 +167,25 @@ else:
 st.sidebar.subheader("Scenario Assumptions")
 scenario = st.sidebar.selectbox(
     "Scenario",
-    ["Base Case", "Optimistic (+20% acceptance)", "Pessimistic (-20% acceptance)"],
+    ["Base Case", "CMO Priority (Premium)", "CFO Priority (Fast Payback)", "Balanced Approach", "Aggressive Market Share", "Conservative Profitability"],
     index=0
 )
 
 # Acceptance rate adjustment based on scenario
-acceptance_multiplier = {
-    "Base Case": 1.0,
-    "Optimistic (+20% acceptance)": 1.2,
-    "Pessimistic (-20% acceptance)": 0.8
-}[scenario]
+if scenario == "Base Case":
+    acceptance_multiplier = 1.0
+elif scenario == "CMO Priority (Premium)":
+    acceptance_multiplier = 0.8  # Lower acceptance for premium positioning
+elif scenario == "CFO Priority (Fast Payback)":
+    acceptance_multiplier = 1.2  # Higher acceptance for volume focus
+elif scenario == "Balanced Approach":
+    acceptance_multiplier = 1.0  # Neutral
+elif scenario == "Aggressive Market Share":
+    acceptance_multiplier = 1.3  # Even higher acceptance for market share
+elif scenario == "Conservative Profitability":
+    acceptance_multiplier = 0.9  # Slightly lower acceptance for margin protection
+else:
+    acceptance_multiplier = 1.0
 
 # Launch timing
 st.sidebar.subheader("Launch Timing")
@@ -172,17 +199,53 @@ launch_month = st.sidebar.selectbox(
 # Get seasonal factor for selected launch month
 seasonal_factor = seasonality_df[seasonality_df['month'] == launch_month]['seasonality_index_100_avg'].values[0] / 100
 
+# Competitive response assumptions
+st.sidebar.subheader("Competitive Response")
+competitive_response = st.sidebar.slider(
+    "Competitive Aggressiveness (%)",
+    min_value=0,
+    max_value=100,
+    value=30,
+    help="How aggressively competitors respond (price matching, promotions, etc.)"
+)
+
+# Calculate competitive impact factor (reduces effectiveness)
+competitive_impact = 1.0 - (competitive_response / 100 * 0.5)  # Up to 50% reduction
+
+# Sensitivity Analysis
+st.sidebar.subheader("Sensitivity Analysis")
+tam_multiplier = st.sidebar.slider(
+    "TAM Multiplier",
+    min_value=0.5,
+    max_value=2.0,
+    value=1.0,
+    step=0.1,
+    help="Adjust Total Addressable Market assumption"
+)
+cac_multiplier = st.sidebar.slider(
+    "CAC Multiplier",
+    min_value=0.5,
+    max_value=2.0,
+    value=1.0,
+    step=0.1,
+    help="Adjust Customer Acquisition Cost assumption"
+)
+ltv_multiplier = st.sidebar.slider(
+    "LTV Multiplier",
+    min_value=0.5,
+    max_value=2.0,
+    value=1.0,
+    step=0.1,
+    help="Adjust Lifetime Value assumption"
+)
+
 # Main calculation function
-def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, seasonal_adj):
+def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, seasonal_adj, competitive_adj, tam_mult, cac_mult, ltv_mult):
     # Filter price data for selected price
     price_data = price_df[price_df['price_eur'] == price]
 
     if len(price_data) == 0:
-        # If exact price not found, interpolate or use closest
-        # For simplicity, we'll use the closest predefined price
-        closest_price = price_df.iloc[(price_df['price_eur'] - price).abs().argsort()[:1]]['price_eur'].values[0]
-        price_data = price_df[price_df['price_eur'] == closest_price]
-        price = closest_price
+        price_data = interpolate_price_data(price_df, price)
 
     # Initialize results
     results = {
@@ -200,7 +263,7 @@ def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, sea
     for _, row in price_data.iterrows():
         channel = row['channel']
         base_acceptance = row['estimated_acceptance_pct_of_survey'] / 100
-        adjusted_acceptance = min(base_acceptance * acceptance_mult * seasonal_adj, 1.0)  # Cap at 100%
+        adjusted_acceptance = min(base_acceptance * acceptance_mult * seasonal_adj * competitive_adj, 1.0)  # Cap at 100%
         net_price = row['net_price_to_lumen_eur']
         unit_contribution = row['unit_contribution_eur']
 
@@ -214,7 +277,7 @@ def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, sea
 
         # Calculate expected volume (proportional to TAM and channel allocation)
         # Using Energy/Focus TAM as proxy, adjusted by channel allocation and acceptance
-        channel_tam = tam_energy * channel_pct
+        channel_tam = tam_energy * channel_pct * tam_mult
         expected_units = channel_tam * adjusted_acceptance / 1000  # Convert to thousands of units for readability
         expected_revenue = expected_units * net_price * 1000  # Back to actual revenue
         expected_contribution = expected_units * unit_contribution * 1000  # Back to actual contribution
@@ -241,8 +304,8 @@ def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, sea
 
     # Calculate derived metrics
     results['total_margin_pct'] = (results['total_contribution'] / results['total_revenue'] * 100) if results['total_revenue'] > 0 else 0
-    results['payback_months'] = (avg_cac * results['total_units'] * 1000 / results['total_contribution']) if results['total_contribution'] > 0 else float('inf')
-    results['ltv_cac_ratio'] = avg_ltv / avg_cac if avg_cac > 0 else 0
+    results['payback_months'] = (avg_cac * cac_mult * results['total_units'] * 1000 / results['total_contribution']) if results['total_contribution'] > 0 else float('inf')
+    results['ltv_cac_ratio'] = (avg_ltv * ltv_mult) / (avg_cac * cac_mult) if avg_cac > 0 else 0
 
     return results
 
@@ -253,11 +316,16 @@ results = calculate_outcomes(
     retail_pct,
     gym_pct,
     acceptance_multiplier,
-    seasonal_factor
+    seasonal_factor,
+    competitive_impact,
+    tam_multiplier,
+    cac_multiplier,
+    ltv_multiplier
 )
 
 # Display results
-st.header("📊 Simulation Results")
+st.markdown('<div class="eyebrow">Core decision metrics</div>', unsafe_allow_html=True)
+st.header("What the plan delivers")
 
 # Key metrics row
 col1, col2, col3, col4 = st.columns(4)
@@ -322,9 +390,7 @@ with col8:
     )
 
 # Tabs for detailed analysis
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Channel Breakdown", "📊 Visualizations", "📋 Scenario Comparison", "🗓️ Launch Timing", "ℹ️ About"])
-
-with tab1:
+if page == "Channel Breakdown":
     st.subheader("Channel Performance Breakdown")
 
     # Create detailed dataframe for display
@@ -374,7 +440,7 @@ with tab1:
             margin_pct = (best_margin['unit_contribution_eur'] / best_margin['net_price_eur']) * 100 if best_margin['net_price_eur'] > 0 else 0
             st.write(f"{best_margin['channel']}: {margin_pct:.1f}%")
 
-with tab2:
+if page == "Trade-offs":
     st.subheader("Trade-off Visualizations")
 
     # Create visualizations
@@ -396,13 +462,13 @@ with tab2:
 
         # Contribution bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=contributions, name="Contribution", marker_color='lightblue'),
+            go.Bar(x=channels, y=contributions, name="Contribution", marker_color='#0d6b68'),
             row=1, col=1
         )
 
         # Revenue bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=revenues, name="Revenue", marker_color='lightgreen'),
+            go.Bar(x=channels, y=revenues, name="Revenue", marker_color='#9ad8c0'),
             row=1, col=2
         )
 
@@ -418,20 +484,20 @@ with tab2:
         volume_data = []
 
         for price in price_points:
-            price_results = calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_multiplier, seasonal_factor)
+            price_results = calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_multiplier, seasonal_factor, competitive_impact, tam_multiplier, cac_multiplier, ltv_multiplier)
             margin_data.append(price_results['total_margin_pct'])
             volume_data.append(price_results['total_units'])
 
         fig.add_trace(
             go.Scatter(x=volume_data, y=margin_data, mode='lines+markers',
-                      name="Margin-Volume Trade-off", line=dict(color='orange')),
+                      name="Margin-Volume Trade-off", line=dict(color='#b99243')),
             row=2, col=2
         )
 
         # Add current point
         fig.add_trace(
             go.Scatter(x=[results['total_units']], y=[results['total_margin_pct']],
-                      mode='markers', marker=dict(size=12, color='red'),
+                      mode='markers', marker=dict(size=12, color='#d36d61'),
                       name="Current Selection"),
             row=2, col=2
         )
@@ -448,7 +514,7 @@ with tab2:
         for price in price_points:
             price_data = price_df[price_df['price_eur'] == price]
             if len(price_data) > 0:
-                avg_acceptance = price_data['estimated_acceptance_pct_of_survey'].mean() * acceptance_multiplier * seasonal_factor
+                avg_acceptance = price_data['estimated_acceptance_pct_of_survey'].mean() * acceptance_multiplier * seasonal_factor * competitive_impact
                 acceptance_rates.append(min(avg_acceptance, 100))  # Cap at 100%
             else:
                 acceptance_rates.append(0)
@@ -456,9 +522,9 @@ with tab2:
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=price_points, y=acceptance_rates,
                                  mode='lines+markers', name='Acceptance Rate',
-                                 line=dict(color='blue')))
+                                 line=dict(color='#0d6b68')))
         fig2.add_trace(go.Scatter(x=[selected_price], y=[results['weighted_acceptance']*100],
-                                 mode='markers', marker=dict(size=12, color='red'),
+                                 mode='markers', marker=dict(size=12, color='#d36d61'),
                                  name='Selected Price'))
         fig2.update_layout(
             title="Price vs Acceptance Rate",
@@ -468,24 +534,21 @@ with tab2:
         )
         st.plotly_chart(fig2, )
 
-with tab3:
-    st.subheader("Scenario Comparison")
-
-    # Compare base, optimistic, and pessimistic scenarios
-    scenarios = ["Base Case", "Optimistic (+20% acceptance)", "Pessimistic (-20% acceptance)"]
-    scenario_results = {}
-
-    for sc in scenarios:
-        mult = {"Base Case": 1.0, "Optimistic (+20% acceptance)": 1.2, "Pessimistic (-20% acceptance)": 0.8}[sc]
-        scenario_results[sc] = calculate_outcomes(selected_price, dtc_pct, retail_pct, gym_pct, mult, seasonal_factor)
-
-    # Create comparison dataframe
+if page == "Scenario Comparison":
+    st.subheader("Recommended stakeholder strategies")
+    st.caption("Each recommendation includes its own price, channel mix, and objective. €1.99 and €2.39 are interpolated only within the tested €1.79–€2.59 range.")
+    strategy_results = generate_strategy_recommendations(
+        price_df, pd.read_csv('data/competitor_prices_by_channel.csv'), tam_energy,
+        avg_cac * cac_multiplier, avg_ltv * ltv_multiplier, seasonal_factor, competitive_impact
+    )
     comparison_data = []
-    for sc in scenarios:
-        res = scenario_results[sc]
+    for res in strategy_results:
         comparison_data.append({
-            'Scenario': sc,
+            'Strategy': res['strategy'],
+            'Objective': res['objective'],
             'Price (EUR)': f"€{res['price_eur']:.2f}",
+            'Price basis': res['price_basis'],
+            'Channel mix': ' / '.join(f"{channel}: {share}%" for channel, share in res['allocations'].items()),
             'Contribution (EUR)': f"€{res['total_contribution']:,.0f}",
             'Revenue (EUR)': f"€{res['total_revenue']:,.0f}",
             'Margin (%)': f"{res['total_margin_pct']:.1f}%",
@@ -496,26 +559,9 @@ with tab3:
 
     comparison_df = pd.DataFrame(comparison_data)
     st.dataframe(comparison_df, hide_index=True)
+    st.info("The profiles are intentionally distinct. If new research later supports the same price for two objectives, show that result rather than forcing a difference.")
 
-    # Highlight best scenario for each metric
-    st.write("**Best Performing Scenario by Metric:**")
-    best_contrib = max(scenarios, key=lambda x: scenario_results[x]['total_contribution'])
-    best_margin = max(scenarios, key=lambda x: scenario_results[x]['total_margin_pct'])
-    best_volume = max(scenarios, key=lambda x: scenario_results[x]['total_units'])
-    best_payback = min([x for x in scenarios if scenario_results[x]['payback_months'] != float('inf')],
-                      key=lambda x: scenario_results[x]['payback_months'], default="N/A")
-
-    col_x, col_y, col_z, col_w = st.columns(4)
-    with col_x:
-        st.metric("Highest Contribution", best_contrib)
-    with col_y:
-        st.metric("Highest Margin", best_margin)
-    with col_z:
-        st.metric("Highest Volume", best_volume)
-    with col_w:
-        st.metric("Fastest Payback", best_payback if best_payback != "N/A" else "N/A")
-
-with tab4:
+if page == "Launch Timing":
     st.subheader("Launch Timing Analysis")
 
     # Create seasonality and competitor promotion visualization
@@ -537,14 +583,14 @@ with tab4:
     # Add seasonality index line
     fig.add_trace(
         go.Scatter(x=month_names, y=seasonality_idx, mode='lines+markers',
-                   name='Seasonality Index (100=avg)', line=dict(color='blue', width=3)),
+                   name='Seasonality Index (100=avg)', line=dict(color='#0d6b68', width=3)),
         secondary_y=False,
     )
 
     # Add competitor promotions as bars
     fig.add_trace(
         go.Bar(x=month_names, y=promo_counts, name='Competitor Promo Count',
-               marker_color='rgba(255, 165, 0, 0.6)', opacity=0.7),
+               marker_color='rgba(185, 146, 67, 0.68)', opacity=0.7),
         secondary_y=True,
     )
 
@@ -625,61 +671,540 @@ with tab4:
     to the base acceptance rates in the financial projections above.
     """)
 
-with tab5:
+if page == "Business Summary":
+    st.subheader("⚡ Sensitivity Analysis")
+
+    st.markdown("""
+    This sensitivity analysis shows how changes in key assumptions impact the simulation results.
+    Adjust the sliders in the sidebar to see how sensitive the outcomes are to:
+    - **TAM Multiplier**: Changes to the Total Addressable Market assumption
+    - **CAC Multiplier**: Changes to Customer Acquisition Cost assumption
+    - **LTV Multiplier**: Changes to Lifetime Value assumption
+    """)
+
+    if results['channel_breakdown']:
+        # Test variations in key parameters
+        tam_values = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        cac_values = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        ltv_values = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+
+        # Calculate base case results (all parameters at 1.0 except those varied in sidebar)
+        base_results = calculate_outcomes(
+            selected_price, dtc_pct, retail_pct, gym_pct,
+            acceptance_multiplier, seasonal_factor, competitive_impact,
+            1.0, 1.0, 1.0  # TAM, CAC, LTV multipliers at base
+        )
+        base_contribution = base_results['total_contribution']
+        base_payback = base_results['payback_months'] if base_results['payback_months'] != float('inf') else 100
+        base_margin = base_results['total_margin_pct']
+
+        # Calculate impacts when varying each parameter
+        tam_impact = []
+        cac_impact = []
+        ltv_impact = []
+
+        for tam in tam_values:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                tam, 1.0, 1.0  # Vary TAM, keep CAC and LTV at base
+            )
+            tam_impact.append({
+                'tam': tam,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        for cac in cac_values:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                1.0, cac, 1.0  # Vary CAC, keep TAM and LTV at base
+            )
+            cac_impact.append({
+                'cac': cac,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        for ltv in ltv_values:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                1.0, 1.0, ltv  # Vary LTV, keep TAM and CAC at base
+            )
+            ltv_impact.append({
+                'ltv': ltv,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        # Create tornado diagrams for key metrics
+        st.subheader("Tornado Diagrams: Impact of Parameter Variations")
+
+        # Prepare data for tornado diagrams
+        metrics = [
+            {
+                'name': 'Contribution Margin (%)',
+                'base': base_margin,
+                'tam_impact': [item['margin'] for item in tam_impact],
+                'cac_impact': [item['margin'] for item in cac_impact],
+                'ltv_impact': [item['margin'] for item in ltv_impact]
+            },
+            {
+                'name': 'Payback Period (months)',
+                'base': base_payback,
+                'tam_impact': [item['payback'] for item in tam_impact],
+                'cac_impact': [item['payback'] for item in cac_impact],
+                'ltv_impact': [item['payback'] for item in ltv_impact]
+            },
+            {
+                'name': 'Total Contribution (EUR)',
+                'base': base_contribution,
+                'tam_impact': [item['contribution'] for item in tam_impact],
+                'cac_impact': [item['contribution'] for item in cac_impact],
+                'ltv_impact': [item['contribution'] for item in ltv_impact]
+            }
+        ]
+
+        # Create tornado diagram for each metric
+        for metric in metrics:
+            fig = go.Figure()
+
+            # Calculate impact ranges for each parameter
+            parameters = ['TAM', 'CAC', 'LTV']
+            impact_data = [
+                {
+                    'param': 'TAM',
+                    'low': min(metric['tam_impact']),
+                    'high': max(metric['tam_impact']),
+                    'base': metric['base']
+                },
+                {
+                    'param': 'CAC',
+                    'low': min(metric['cac_impact']),
+                    'high': max(metric['cac_impact']),
+                    'base': metric['base']
+                },
+                {
+                    'param': 'LTV',
+                    'low': min(metric['ltv_impact']),
+                    'high': max(metric['ltv_impact']),
+                    'base': metric['base']
+                }
+            ]
+
+            # Sort by impact range (high - low) for tornado effect
+            impact_data.sort(key=lambda x: abs(x['high'] - x['low']), reverse=True)
+
+            # Add bars for each parameter
+            for i, param_data in enumerate(impact_data):
+                fig.add_trace(go.Bar(
+                    name=param_data['param'],
+                    y=[param_data['param']],
+                    x=[param_data['high'] - param_data['low']],
+                    base=param_data['low'],
+                    orientation='h',
+                    marker_color=['blue', 'red', 'green'][i],
+                    showlegend=False
+                ))
+
+            # Add base value line
+            fig.add_vline(
+                x=metric['base'],
+                line_dash="dash",
+                line_color="gray",
+                annotation_text=f"Base: {metric['base']:.2f}",
+                annotation_position="top"
+            )
+
+            fig.update_layout(
+                title=f"Sensitivity of {metric['name']} to Parameter Variations",
+                xaxis_title="Impact Range",
+                yaxis_title="Parameters",
+                height=400,
+                showlegend=False
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Parameter sensitivity summary (elasticity at base point)
+        st.subheader("Parameter Sensitivity Summary")
+
+        # Calculate percentage changes using the original varied parameters (all others at current values from sidebar)
+        tam_values_full = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        cac_values_full = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        ltv_values_full = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+
+        # Recalculate impacts with current sidebar values for CAC, LTV when testing TAM, etc.
+        tam_impact_full = []  # Vary TAM, keep others at current sidebar values
+        cac_impact_full = []  # Vary CAC, keep others at current sidebar values
+        ltv_impact_full = []  # Vary LTV, keep others at current sidebar values
+
+        for tam in tam_values_full:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                tam, cac_multiplier, ltv_multiplier  # Keep CAC, LTV at current sidebar values
+            )
+            tam_impact_full.append({
+                'tam': tam,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        for cac in cac_values_full:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                tam_multiplier, cac, ltv_multiplier  # Keep TAM, LTV at current sidebar values
+            )
+            cac_impact_full.append({
+                'cac': cac,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        for ltv in ltv_values_full:
+            test_results = calculate_outcomes(
+                selected_price, dtc_pct, retail_pct, gym_pct,
+                acceptance_multiplier, seasonal_factor, competitive_impact,
+                tam_multiplier, cac_multiplier, ltv  # Keep TAM, CAC at current sidebar values
+            )
+            ltv_impact_full.append({
+                'ltv': ltv,
+                'contribution': test_results['total_contribution'],
+                'payback': test_results['payback_months'] if test_results['payback_months'] != float('inf') else 100,
+                'margin': test_results['total_margin_pct']
+            })
+
+        base_tam_idx = tam_values_full.index(1.0)
+        base_cac_idx = cac_values_full.index(1.0)
+        base_ltv_idx = ltv_values_full.index(1.0)
+
+        tam_elasticity = ((tam_impact_full[base_tam_idx+1]['contribution'] - tam_impact_full[base_tam_idx-1]['contribution']) /
+                         (2 * base_contribution * 0.25)) if base_tam_idx > 0 and base_tam_idx < len(tam_impact_full)-1 else 0
+        cac_elasticity = ((cac_impact_full[base_cac_idx+1]['payback'] - cac_impact_full[base_cac_idx-1]['payback']) /
+                         (2 * base_payback * 0.25)) if base_cac_idx > 0 and base_cac_idx < len(cac_impact_full)-1 else 0
+        ltv_elasticity = ((ltv_impact_full[base_ltv_idx+1]['contribution'] - ltv_impact_full[base_ltv_idx-1]['contribution']) /
+                         (2 * base_contribution * 0.25)) if base_ltv_idx > 0 and base_ltv_idx < len(ltv_impact_full)-1 else 0
+
+        # Create elasticity bar chart
+        fig_elasticity = go.Figure()
+        fig_elasticity.add_trace(go.Bar(
+            x=['TAM Elasticity', 'CAC Elasticity', 'LTV Elasticity'],
+            y=[abs(tam_elasticity), abs(cac_elasticity), abs(ltv_elasticity)],
+            marker_color=['blue', 'red', 'green']
+        ))
+        fig_elasticity.update_layout(
+            title="Parameter Elasticity (Absolute Value)",
+            yaxis_title="Elasticity Coefficient",
+            height=300
+        )
+        st.plotly_chart(fig_elasticity, use_container_width=True)
+
+        # Key insights
+        st.subheader("Key Insights")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            tam_sensitivity = "High" if abs(tam_elasticity) > 1 else "Medium" if abs(tam_elasticity) > 0.5 else "Low"
+            st.metric("TAM Sensitivity", tam_sensitivity,
+                     help="How much contribution changes with TAM assumptions")
+
+        with col2:
+            cac_sensitivity = "High" if abs(cac_elasticity) > 1 else "Medium" if abs(cac_elasticity) > 0.5 else "Low"
+            st.metric("CAC Sensitivity", cac_sensitivity,
+                     help="How much payback period changes with CAC assumptions")
+
+        with col3:
+            ltv_sensitivity = "High" if abs(ltv_elasticity) > 1 else "Medium" if abs(ltv_elasticity) > 0.5 else "Low"
+            st.metric("LTV Sensitivity", ltv_sensitivity,
+                     help="How much contribution changes with LTV assumptions")
+
+if page == "Business Summary":
+    st.markdown('<div class="summary-card"><div class="eyebrow">Executive readout</div><h3>Business summary &amp; financial viability</h3><p>Use this section to prepare the CMO/CFO discussion: it combines the live case economics with break-even and ROI implications.</p></div>', unsafe_allow_html=True)
+    try:
+        with open('business_summary.txt', 'r', encoding='utf-8') as summary_file:
+            st.download_button(
+                "Download executive business summary",
+                data=summary_file.read(),
+                file_name="LUMEN-business-summary.txt",
+                mime="text/plain",
+            )
+    except FileNotFoundError:
+        st.info("The business-summary download is unavailable in this deployment.")
+
+    st.subheader("Break-even & ROI Analysis")
+
+    st.markdown("""
+    This section helps you understand the financial viability of different strategies by calculating:
+    - **Break-even Volume**: Minimum units needed to cover marketing costs
+    - **Break-even Time**: Months required to recover initial marketing investment
+    - **ROI Timeline**: Time to achieve specific return on investment targets
+    """)
+
+    # Calculate key financial metrics from current results
+    current_contribution = results['total_contribution']
+    current_units = results['total_units'] * 1000  # Convert from K to actual units
+    current_payback = results['payback_months'] if results['payback_months'] != float('inf') else None
+
+    # Calculate monthly marketing spend based on CAC and expected units
+    # This represents the ongoing marketing investment needed to acquire customers at the expected rate
+    if current_units > 0 and current_payback and current_payback > 0:
+        monthly_marketing_spend = (avg_cac * cac_multiplier * current_units) / current_payback
+    else:
+        monthly_marketing_spend = 0
+
+    # Break-even calculations
+    # Fixed costs = monthly marketing spend * payback period (total marketing investment to recover)
+    # Unit contribution margin = current_contribution / current_units (contribution per unit)
+    if current_units > 0 and current_contribution > 0:
+        unit_contribution_margin = current_contribution / current_units
+        total_marketing_investment = monthly_marketing_spend * current_payback if current_payback else 0
+
+        # Break-even volume = Fixed costs / Unit contribution margin
+        break_even_units = total_marketing_investment / unit_contribution_margin if unit_contribution_margin > 0 else 0
+
+        # Break-even time = Fixed costs / (Unit contribution margin × Monthly volume)
+        monthly_contribution = unit_contribution_margin * (current_units / current_payback) if current_payback > 0 else 0
+        break_even_months = total_marketing_investment / monthly_contribution if monthly_contribution > 0 else float('inf')
+    else:
+        break_even_units = 0
+        break_even_months = float('inf')
+
+    # Display current financial metrics
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            label="Monthly Marketing Spend",
+            value=f"€{monthly_marketing_spend:,.0f}",
+            help="Estimated monthly marketing spend based on CAC and expected volume"
+        )
+
+    with col2:
+        st.metric(
+            label="Break-even Volume",
+            value=f"{break_even_units:,.0f} units",
+            help="Minimum units needed to cover marketing costs"
+        )
+
+    with col3:
+        payback_display = f"{break_even_months:.1f} months" if break_even_months != float('inf') else "∞"
+        st.metric(
+            label="Break-even Time",
+            value=payback_display,
+            help="Months required to recover marketing investment"
+        )
+
+    with col4:
+        if current_contribution > 0 and monthly_marketing_spend > 0:
+            monthly_roi = (current_contribution - monthly_marketing_spend) / monthly_marketing_spend * 100
+            st.metric(
+                label="Monthly ROI",
+                value=f"{monthly_roi:.1f}%",
+                help="Return on investment per month"
+            )
+        else:
+            st.metric(
+                label="Monthly ROI",
+                value="N/A",
+                help="Return on investment per month"
+            )
+
+    # Break-even analysis details
+    st.subheader("Break-even Analysis Details")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Break-even Volume by Channel:**")
+        if results['channel_breakdown']:
+            for channel_data in results['channel_breakdown']:
+                channel_name = channel_data['channel']
+                unit_contribution = channel_data['unit_contribution_eur']
+                if unit_contribution > 0:
+                    channel_break_even = (avg_cac * cac_multiplier) / unit_contribution
+                    st.write(f"- {channel_name}: {channel_break_even:,.0f} units")
+                else:
+                    st.write(f"- {channel_name}: ∞ (no contribution)")
+
+    with col2:
+        st.markdown("**Break-even Time by Channel:**")
+        if results['channel_breakdown']:
+            for channel_data in results['channel_breakdown']:
+                channel_name = channel_data['channel']
+                unit_contribution = channel_data['unit_contribution_eur']
+                allocation_pct = channel_data['allocation_pct'] / 100
+                if unit_contribution > 0 and allocation_pct > 0:
+                    channel_contribution = unit_contribution * allocation_pct
+                    if channel_contribution > 0:
+                        channel_break_even_time = (avg_cac * cac_multiplier) / channel_contribution
+                        st.write(f"- {channel_name}: {channel_break_even_time:.1f} months")
+                    else:
+                        st.write(f"- {channel_name}: ∞")
+                else:
+                    st.write(f"- {channel_name}: ∞")
+
+    # ROI targets
+    st.subheader("ROI Target Analysis")
+
+    roi_target = st.slider(
+        "Target ROI (%)",
+        min_value=10,
+        max_value=500,
+        value=100,
+        step=10,
+        help="Target return on investment percentage"
+    )
+
+    if current_contribution > 0 and monthly_marketing_spend > 0:
+        months_to_roi = np.log(1 + roi_target/100) / np.log(1 + current_contribution/monthly_marketing_spend) if current_contribution/monthly_marketing_spend > 0 else float('inf')
+        roi_display = f"{months_to_roi:.1f} months" if months_to_roi != float('inf') else "Never"
+
+        st.write(f"To achieve {roi_target}% ROI: **{roi_display}**")
+
+        if months_to_roi != float('inf') and months_to_roi < 60:  # Less than 5 years
+            st.success(f"✅ Achievable within {months_to_roi:.1f} months")
+        elif months_to_roi != float('inf'):
+            st.warning(f"⚠️ Long-term goal: {months_to_roi:.1f} months ({months_to_roi/12:.1f} years)")
+        else:
+            st.error("❌ Not achievable with current parameters")
+    else:
+        st.write("Unable to calculate ROI timeline - check contribution and marketing spend values")
+
+    # Sensitivity of break-even to key parameters
+    st.subheader("Break-even Sensitivity")
+
+    # Test how break-even changes with key parameters
+    tam_values = [0.5, 0.75, 1.0, 1.25, 1.5]
+    cac_values = [0.5, 0.75, 1.0, 1.25, 1.5]
+
+    break_even_tam = []
+    break_even_cac = []
+
+    for tam in tam_values:
+        test_results = calculate_outcomes(
+            selected_price, dtc_pct, retail_pct, gym_pct,
+            acceptance_multiplier, seasonal_factor, competitive_impact,
+            tam, cac_multiplier, ltv_multiplier
+        )
+        if test_results['total_contribution'] > 0:
+            be_units = (avg_cac * cac_multiplier * test_results['total_units'] * 1000) / (test_results['total_contribution'] / (test_results['total_units'] * 1000)) if test_results['total_units'] > 0 else 0
+            break_even_tam.append({'tam': tam, 'break_even_units': be_units})
+        else:
+            break_even_tam.append({'tam': tam, 'break_even_units': float('inf')})
+
+    for cac in cac_values:
+        test_results = calculate_outcomes(
+            selected_price, dtc_pct, retail_pct, gym_pct,
+            acceptance_multiplier, seasonal_factor, competitive_impact,
+            tam_multiplier, cac, ltv_multiplier
+        )
+        if test_results['total_contribution'] > 0:
+            be_units = (avg_cac * cac * test_results['total_units'] * 1000) / (test_results['total_contribution'] / (test_results['total_units'] * 1000)) if test_results['total_units'] > 0 else 0
+            break_even_cac.append({'cac': cac, 'break_even_units': be_units})
+        else:
+            break_even_cac.append({'cac': cac, 'break_even_units': float('inf')})
+
+    # Create sensitivity chart
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('Break-even Volume vs TAM Multiplier', 'Break-even Volume vs CAC Multiplier'),
+        specs=[[{"type": "scatter"}, {"type": "scatter"}]]
+    )
+
+    # TAM sensitivity
+    tam_vals = [item['tam'] for item in break_even_tam if item['break_even_units'] != float('inf')]
+    be_tam_vals = [item['break_even_units'] for item in break_even_tam if item['break_even_units'] != float('inf')]
+    if tam_vals and be_tam_vals:
+        fig.add_trace(
+            go.Scatter(x=tam_vals, y=be_tam_vals, mode='lines+markers', name='TAM Impact', line=dict(color='blue')),
+            row=1, col=1
+        )
+
+    # CAC sensitivity
+    cac_vals = [item['cac'] for item in break_even_cac if item['break_even_units'] != float('inf')]
+    be_cac_vals = [item['break_even_units'] for item in break_even_cac if item['break_even_units'] != float('inf')]
+    if cac_vals and be_cac_vals:
+        fig.add_trace(
+            go.Scatter(x=cac_vals, y=be_cac_vals, mode='lines+markers', name='CAC Impact', line=dict(color='red')),
+            row=1, col=2
+        )
+
+    fig.update_layout(height=400, showlegend=True)
+    fig.update_xaxes(title_text="TAM Multiplier", row=1, col=1)
+    fig.update_yaxes(title_text="Break-even Units", row=1, col=1, type="log")
+    fig.update_xaxes(title_text="CAC Multiplier", row=1, col=2)
+    fig.update_yaxes(title_text="Break-even Units", row=1, col=2, type="log")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+if page == "About / Assumptions":
     st.subheader("About This Simulator")
-    st.markdown("""
-    ### Purpose
-    This interactive simulator helps explore the strategic trade-offs for LUMEN's Germany market entry decision,
-    specifically addressing the tension between:
-    - **CMO's Objective**: Premium positioning (higher price, brand building)
-    - **CFO's Objective**: Fast payback (lower price, higher volume, quicker margin recovery)
-    """)
 
     st.markdown("""
-    ### Data Sources
-    The simulation integrates data from all 12 case exhibits:
-    - **price_test_results.csv**: Acceptance rates, net prices, and contributions for 3 candidate prices
-    - **channel_economics.csv**: Channel-specific economics (retailer margins, distributor cuts, etc.)
-    - **cost_breakdown.csv**: Per-unit cost structure and current gross margin
-    - **marketing_funnel_monthly.csv**: Channel-specific CAC, LTV, and marketing performance
-    - **market_context.csv**: Germany functional beverage market sizing and regional breakdown
-    - **seasonality_and_weather.csv**: Monthly demand seasonality and temperature correlations
-    - **competitor_price_history.csv**: Competitive pricing and promotion activity over time
+    This simulator was developed for the ATELIA × ESCP LUMEN Pricing & Go-to-Market Case Competition.
+    It helps analyze the strategic trade-offs between LUMEN's launch strategy in the German functional beverage market.
     """)
 
+    st.markdown("### Key Features")
     st.markdown("""
-    ### Key Assumptions
-    1. **Market Size**: Uses Energy/Focus segment (€2.55bn in 2026) as proxy for LUMEN's addressable market
-    2. **Acceptance Rates**: Based on survey data from `price_test_results.csv`, adjustable by scenario
-    3. **Channel Allocation**: Marketing budget distributed across DTC Online, Retail/Grocery, and Gym & Office
-    4. **Seasonal Adjustment**: Optional monthly demand variation based on `seasonality_and_weather.csv`
-    5. **Competitor Activity**: Promotion frequency derived from `competitor_price_history.csv`
-    6. **Financial Metrics**:
-       - CAC and LTV averaged from most recent 6 months of marketing data
-       - Payback period = (CAC × Total Customers) / Total Contribution
-       - LTV:CAC ratio from marketing funnel data
-    7. **Volume Calculation**: Expected units = TAM × Channel Allocation × Acceptance Rate × Seasonal Factor
+    - **Multiple Strategic Scenarios**: Test different business objectives including CMO priority (premium positioning),
+      CFO priority (fast payback), balanced approach, aggressive market share, and conservative profitability.
+    - **Competitive Response Modeling**: Adjust competitor aggressiveness to see how price matching and promotions
+      impact market acceptance.
+    - **Sensitivity Analysis**: Understand how changes in TAM, CAC, and LTV assumptions affect financial outcomes
+      with tornado diagrams and elasticity calculations.
+    - **Break-even & ROI Analysis**: Calculate break-even volume/time, analyze ROI targets, and perform sensitivity
+      analysis on key financial parameters.
+    - **Channel-level Analysis**: Detailed breakdown of performance across DTC Online, Retail/Grocery, and Gym & Office channels.
+    - **Launch Timing Optimization**: Incorporates seasonal demand and competitor promotional activity by launch month.
     """)
 
+    st.markdown("### How to Use")
     st.markdown("""
-    ### How to Use
-    1. **Select Price**: Choose from the three candidate prices (€1.79, €2.19, €2.59) or set a custom price
-    2. **Allocate Budget**: Distribute your marketing budget across the three channels (must sum to 100%)
-    3. **Adjust Scenario**: Test Base Case, Optimistic (+20% acceptance), or Pessimistic (-20% acceptance)
-    4. **Set Launch Timing**: Choose launch month to factor in seasonality and competitor activity
-    5. **Explore Results**: Use the tabs to view detailed breakdowns, visualizations, scenario comparisons, and launch timing analysis
-    6. **Iterate**: Adjust parameters to explore different strategies and their outcomes
+    1. **Select Price**: Choose from predefined price points (€1.79, €2.19, €2.59) or set a custom price
+    2. **Allocate Budget**: Distribute marketing budget across the three channels (must sum to 100%)
+    3. **Adjust Scenario**: Test different strategic objectives using the scenario selector
+    4. **Set Competitive Response**: Adjust competitor aggressiveness slider (0-100%)
+    5. **Modify Assumptions**: Use sensitivity sliders to adjust TAM, CAC, and LTV multipliers
+    6. **Choose Launch Month**: Factor in seasonal demand and competitor promotional activity
+    7. **Analyze Results**: Explore tabs to understand financial projections, visualizations, and strategic trade-offs
     """)
 
+    st.markdown("### Key Metrics Explained")
     st.markdown("""
-    ### Insights to Explore
-    - How does channel mix affect the price/volume trade-off?
-    - Which channel combination maximizes contribution vs. revenue vs. speed of payback?
-    - How sensitive are outcomes to changes in acceptance rates and seasonal factors?
-    - What is the optimal launch timing considering both demand seasonality and competitor activity?
-    - What is the optimal strategy for different objectives (margin maximization vs. market share vs. quick ROI)?
+    - **Contribution Margin**: (Revenue - Variable Costs) / Revenue
+    - **Payback Period**: Months required to recover customer acquisition costs
+    - **LTV:CAC Ratio**: Lifetime Value to Customer Acquisition Cost ratio (>1 indicates profitable customer acquisition)
+    - **Expected Volume**: Forecasted unit sales based on TAM, channel allocation, acceptance rates, and seasonal factors
+    - **Break-even Volume**: Minimum units needed to cover marketing costs
+    - **Break-even Time**: Months required to recover initial marketing investment
     """)
+
+    st.markdown("### Data Sources")
+    st.markdown("""
+    The simulator integrates data from all 12 case exhibits:
+    - Price test results and sensitivity data
+    - Channel-specific economics and margins
+    - Per-unit cost structure
+    - Monthly marketing performance metrics (CAC, LTV)
+    - Market sizing and regional data
+    - Monthly demand seasonality index and temperature correlations
+    - Competitive pricing history and promotional activity over time
+    """)
+
+    st.markdown("---")
+    st.markdown("*Built for the Digital Spark Seminar*")
 
 # Footer
 st.markdown("---")
-st.markdown("*LUMEN Germany Market Entry Simulator - Built for the ATELIA × ESCP Case Competition*")
+st.markdown("*LUMEN Germany Market Entry Simulator - Built for the Digital Spark Seminar*")
