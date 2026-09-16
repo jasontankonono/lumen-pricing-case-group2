@@ -110,6 +110,14 @@ Simply push the repository to GitHub and connect it to Streamlit Cloud for insta
 - Integrated findings on pricing, channels, launch timing, seasonality, and competitor activity into decision-ready insights.
 - Highlighted the simulator's key assumptions and limitations for decision-makers.
 
+### Jason
+
+- Led the integration and iterative development of the interactive pricing simulator and its decision-support features.
+- Coordinated deployment and technical troubleshooting across Vercel, Streamlit, GitHub, dependencies, and repository access.
+- Refined the pricing logic by introducing custom-price interpolation and distinct CFO, CMO, and Optimal strategy profiles.
+- Reviewed the financial outputs and identified key modelling limitations around market-size units, volume, and payback calculations.
+- Directed the evolution of the interface into a clearer executive decision cockpit for CMO/CFO strategy discussions.
+
 ## Notes
 
 - All calculations are based on the provided case data
