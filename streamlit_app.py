@@ -5,6 +5,25 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 
+COLORS = {
+    'ink': '#112B3C',
+    'teal': '#0F766E',
+    'mint': '#74C69D',
+    'coral': '#E76F51',
+    'gold': '#E9C46A',
+    'mist': '#F5F7F4',
+    'slate': '#58717E',
+}
+
+PLOTLY_LAYOUT = dict(
+    template='plotly_white',
+    font=dict(family='Avenir Next, Inter, Arial, sans-serif', color=COLORS['ink']),
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    colorway=[COLORS['teal'], COLORS['coral'], COLORS['gold'], COLORS['mint']],
+    margin=dict(l=20, r=20, t=55, b=25),
+)
+
 # Page configuration
 st.set_page_config(
     page_title="LUMEN Germany Market Entry Simulator",
@@ -12,7 +31,26 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown(f"""
+<style>
+  :root {{ --lumen-ink: {COLORS['ink']}; --lumen-teal: {COLORS['teal']}; --lumen-coral: {COLORS['coral']}; --lumen-mist: {COLORS['mist']}; }}
+  .stApp {{ background: linear-gradient(145deg, #FCFDFB 0%, var(--lumen-mist) 100%); color: var(--lumen-ink); }}
+  html, body, [class*="css"] {{ font-family: "Avenir Next", Inter, Arial, sans-serif; }}
+  h1, h2, h3 {{ color: var(--lumen-ink); letter-spacing: -0.025em; }}
+  h1 {{ font-weight: 750; }}
+  [data-testid="stMetric"] {{ background: rgba(255,255,255,.82); border: 1px solid #D8E2DE; border-radius: 14px; padding: 1rem; box-shadow: 0 4px 16px rgba(17,43,60,.05); }}
+  [data-testid="stMetricLabel"] {{ color: #58717E; font-size: .82rem; text-transform: uppercase; letter-spacing: .055em; }}
+  [data-testid="stMetricValue"] {{ color: var(--lumen-ink); }}
+  [data-testid="stSidebar"] {{ background: #102C3D; }}
+  [data-testid="stSidebar"] * {{ color: #F6FAF7; }}
+  [data-testid="stSidebar"] a {{ color: #B7E4C7; text-decoration: none; }}
+  [data-testid="stSidebar"] a:hover {{ color: #FFFFFF; text-decoration: underline; }}
+  .lumen-kicker {{ color: var(--lumen-teal); font-size: .8rem; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; margin-bottom: .25rem; }}
+</style>
+""", unsafe_allow_html=True)
+
 # Title and description
+st.markdown('<p class="lumen-kicker">Germany market-entry decision cockpit</p>', unsafe_allow_html=True)
 st.title("🥤 LUMEN Germany Market Entry Simulator")
 st.markdown("""
 Explore the trade-offs between price, channel mix, and market outcomes for LUMEN's entry into the German functional beverage market.
@@ -62,6 +100,13 @@ market_df = load_market_context()
 seasonality_df = load_seasonality()
 competitor_promo = load_competitor_promo()
 
+@st.cache_data
+def load_business_summary():
+    with open('business_summary.txt', encoding='utf-8') as summary_file:
+        return summary_file.read()
+
+business_summary = load_business_summary()
+
 # Calculate average COGS per unit
 cogs_per_unit = cost_df[cost_df['cost_component'] == 'TOTAL COGS per unit (330ml can)']['cost_per_unit_eur'].values[0]
 
@@ -75,7 +120,21 @@ tam_energy = market_df[(market_df['dimension_type'] == 'subcategory') &
                        (market_df['name'] == 'Energy / focus') &
                        (market_df['year'] == 2026)]['value'].values[0]
 
-# Sidebar for inputs
+# Sidebar navigation and controls
+st.sidebar.title("LUMEN Navigator")
+st.sidebar.caption("Jump to any decision view")
+st.sidebar.markdown("""
+**Explore**
+
+[Overview](#overview)<br>
+[Channel breakdown](#channel-breakdown)<br>
+[Trade-offs](#visualizations)<br>
+[Scenario comparison](#scenario-comparison)<br>
+[Launch timing](#launch-timing)<br>
+[Business summary](#business-summary)<br>
+[About & assumptions](#about)
+""")
+st.sidebar.divider()
 st.sidebar.header("🎛️ Simulation Controls")
 
 # Price selection method
@@ -253,6 +312,7 @@ results = calculate_outcomes(
 )
 
 # Display results
+st.markdown('<span id="overview"></span>', unsafe_allow_html=True)
 st.header("📊 Simulation Results")
 
 # Key metrics row
@@ -318,9 +378,13 @@ with col8:
     )
 
 # Tabs for detailed analysis
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Channel Breakdown", "📊 Visualizations", "📋 Scenario Comparison", "🗓️ Launch Timing", "ℹ️ About"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📈 Channel Breakdown", "📊 Visualizations", "📋 Scenario Comparison",
+    "🗓️ Launch Timing", "📝 Business Summary", "ℹ️ About"
+])
 
 with tab1:
+    st.markdown('<span id="channel-breakdown"></span>', unsafe_allow_html=True)
     st.subheader("Channel Performance Breakdown")
 
     # Create detailed dataframe for display
@@ -371,6 +435,7 @@ with tab1:
             st.write(f"{best_margin['channel']}: {margin_pct:.1f}%")
 
 with tab2:
+    st.markdown('<span id="visualizations"></span>', unsafe_allow_html=True)
     st.subheader("Trade-off Visualizations")
 
     # Create visualizations
@@ -392,13 +457,13 @@ with tab2:
 
         # Contribution bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=contributions, name="Contribution", marker_color='lightblue'),
+            go.Bar(x=channels, y=contributions, name="Contribution", marker_color=COLORS['teal']),
             row=1, col=1
         )
 
         # Revenue bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=revenues, name="Revenue", marker_color='lightgreen'),
+            go.Bar(x=channels, y=revenues, name="Revenue", marker_color=COLORS['mint']),
             row=1, col=2
         )
 
@@ -420,19 +485,19 @@ with tab2:
 
         fig.add_trace(
             go.Scatter(x=volume_data, y=margin_data, mode='lines+markers',
-                      name="Margin-Volume Trade-off", line=dict(color='orange')),
+                      name="Margin-Volume Trade-off", line=dict(color=COLORS['teal'], width=3)),
             row=2, col=2
         )
 
         # Add current point
         fig.add_trace(
             go.Scatter(x=[results['total_units']], y=[results['total_margin_pct']],
-                      mode='markers', marker=dict(size=12, color='red'),
+                      mode='markers', marker=dict(size=13, color=COLORS['coral'], line=dict(color='white', width=2)),
                       name="Current Selection"),
             row=2, col=2
         )
 
-        fig.update_layout(height=600, showlegend=True)
+        fig.update_layout(**PLOTLY_LAYOUT, height=600, showlegend=True)
         fig.update_xaxes(title_text="Volume (K units)", row=2, col=2)
         fig.update_yaxes(title_text="Contribution Margin (%)", row=2, col=2)
 
@@ -452,11 +517,12 @@ with tab2:
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=price_points, y=acceptance_rates,
                                  mode='lines+markers', name='Acceptance Rate',
-                                 line=dict(color='blue')))
+                                 line=dict(color=COLORS['teal'], width=3)))
         fig2.add_trace(go.Scatter(x=[selected_price], y=[results['weighted_acceptance']*100],
-                                 mode='markers', marker=dict(size=12, color='red'),
+                                 mode='markers', marker=dict(size=13, color=COLORS['coral'], line=dict(color='white', width=2)),
                                  name='Selected Price'))
         fig2.update_layout(
+            **PLOTLY_LAYOUT,
             title="Price vs Acceptance Rate",
             xaxis_title="Price (EUR)",
             yaxis_title="Acceptance Rate (%)",
@@ -465,6 +531,7 @@ with tab2:
         st.plotly_chart(fig2, )
 
 with tab3:
+    st.markdown('<span id="scenario-comparison"></span>', unsafe_allow_html=True)
     st.subheader("Scenario Comparison")
 
     # Compare scenarios (currently only Base Case available)
@@ -511,6 +578,7 @@ with tab3:
         st.metric("Fastest Payback", best_payback if best_payback != "N/A" else "N/A")
 
 with tab4:
+    st.markdown('<span id="launch-timing"></span>', unsafe_allow_html=True)
     st.subheader("Launch Timing Analysis")
 
     # Create seasonality and competitor promotion visualization
@@ -532,14 +600,14 @@ with tab4:
     # Add seasonality index line
     fig.add_trace(
         go.Scatter(x=month_names, y=seasonality_idx, mode='lines+markers',
-                   name='Seasonality Index (100=avg)', line=dict(color='blue', width=3)),
+                   name='Seasonality Index (100=avg)', line=dict(color=COLORS['teal'], width=3)),
         secondary_y=False,
     )
 
     # Add competitor promotions as bars
     fig.add_trace(
         go.Bar(x=month_names, y=promo_counts, name='Competitor Promo Count',
-               marker_color='rgba(255, 165, 0, 0.6)', opacity=0.7),
+               marker_color=COLORS['gold'], opacity=0.8),
         secondary_y=True,
     )
 
@@ -547,13 +615,14 @@ with tab4:
     selected_month_name = month_names[launch_month-1]
     fig.add_trace(
         go.Scatter(x=[selected_month_name], y=[seasonality_idx[launch_month-1]],
-                   mode='markers', marker=dict(size=15, color='red', symbol='star'),
+                   mode='markers', marker=dict(size=15, color=COLORS['coral'], symbol='star'),
                    name=f'Selected Launch Month: {selected_month_name}'),
         secondary_y=False,
     )
 
     # Update layout
     fig.update_layout(
+        **PLOTLY_LAYOUT,
         title_text="Seasonal Demand & Competitor Activity by Month",
         xaxis_title="Month",
         hovermode='x unified',
@@ -621,6 +690,19 @@ with tab4:
     """)
 
 with tab5:
+    st.markdown('<span id="business-summary"></span>', unsafe_allow_html=True)
+    st.subheader("Business Summary")
+    st.caption("A concise decision framing for the simulator and its intended use.")
+    st.markdown(business_summary)
+    st.download_button(
+        "Download business summary",
+        data=business_summary,
+        file_name="lumen-business-summary.txt",
+        mime="text/plain",
+    )
+
+with tab6:
+    st.markdown('<span id="about"></span>', unsafe_allow_html=True)
     st.subheader("About This Simulator")
     st.markdown("""
     ### Purpose
