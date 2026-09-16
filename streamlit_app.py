@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+from strategy_profiles import generate_strategy_recommendations
 
 # Page configuration
 st.set_page_config(
@@ -522,37 +523,20 @@ with tab2:
         st.plotly_chart(fig2, )
 
 with tab3:
-    st.subheader("Scenario Comparison")
-
-    # Compare all scenarios
-    scenarios = ["Base Case", "CMO Priority (Premium)", "CFO Priority (Fast Payback)", "Balanced Approach", "Aggressive Market Share", "Conservative Profitability"]
-    scenario_results = {}
-
-    for sc in scenarios:
-        # Calculate acceptance multiplier for this scenario
-        if sc == "Base Case":
-            acceptance_mult = 1.0
-        elif sc == "CMO Priority (Premium)":
-            acceptance_mult = 0.8
-        elif sc == "CFO Priority (Fast Payback)":
-            acceptance_mult = 1.2
-        elif sc == "Balanced Approach":
-            acceptance_mult = 1.0
-        elif sc == "Aggressive Market Share":
-            acceptance_mult = 1.3
-        elif sc == "Conservative Profitability":
-            acceptance_mult = 0.7
-        else:
-            acceptance_mult = 1.0
-        scenario_results[sc] = calculate_outcomes(selected_price, dtc_pct, retail_pct, gym_pct, acceptance_mult, seasonal_factor, competitive_impact, tam_multiplier, cac_multiplier, ltv_multiplier)
-
-    # Create comparison dataframe
+    st.subheader("Recommended stakeholder strategies")
+    st.caption("Each recommendation includes its own price, channel mix, and objective. €1.99 and €2.39 are interpolated only within the tested €1.79–€2.59 range.")
+    strategy_results = generate_strategy_recommendations(
+        price_df, pd.read_csv('data/competitor_prices_by_channel.csv'), tam_energy,
+        avg_cac * cac_multiplier, avg_ltv * ltv_multiplier, seasonal_factor, competitive_impact
+    )
     comparison_data = []
-    for sc in scenarios:
-        res = scenario_results[sc]
+    for res in strategy_results:
         comparison_data.append({
-            'Scenario': sc,
+            'Strategy': res['strategy'],
+            'Objective': res['objective'],
             'Price (EUR)': f"€{res['price_eur']:.2f}",
+            'Price basis': res['price_basis'],
+            'Channel mix': ' / '.join(f"{channel}: {share}%" for channel, share in res['allocations'].items()),
             'Contribution (EUR)': f"€{res['total_contribution']:,.0f}",
             'Revenue (EUR)': f"€{res['total_revenue']:,.0f}",
             'Margin (%)': f"{res['total_margin_pct']:.1f}%",
@@ -563,24 +547,7 @@ with tab3:
 
     comparison_df = pd.DataFrame(comparison_data)
     st.dataframe(comparison_df, hide_index=True)
-
-    # Highlight best scenario for each metric
-    st.write("**Best Performing Scenario by Metric:**")
-    best_contrib = max(scenarios, key=lambda x: scenario_results[x]['total_contribution'])
-    best_margin = max(scenarios, key=lambda x: scenario_results[x]['total_margin_pct'])
-    best_volume = max(scenarios, key=lambda x: scenario_results[x]['total_units'])
-    best_payback = min([x for x in scenarios if scenario_results[x]['payback_months'] != float('inf')],
-                      key=lambda x: scenario_results[x]['payback_months'], default="N/A")
-
-    col_x, col_y, col_z, col_w = st.columns(4)
-    with col_x:
-        st.metric("Highest Contribution", best_contrib)
-    with col_y:
-        st.metric("Highest Margin", best_margin)
-    with col_z:
-        st.metric("Highest Volume", best_volume)
-    with col_w:
-        st.metric("Fastest Payback", best_payback if best_payback != "N/A" else "N/A")
+    st.info("The profiles are intentionally distinct. If new research later supports the same price for two objectives, show that result rather than forcing a difference.")
 
 with tab4:
     st.subheader("Launch Timing Analysis")

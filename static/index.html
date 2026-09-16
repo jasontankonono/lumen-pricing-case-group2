@@ -42,6 +42,7 @@
       <div class="metrics" id="metrics"></div>
       <section><h2>Channel performance</h2><table><thead><tr><th>Channel</th><th>Allocation</th><th>Acceptance</th><th>Net price</th><th>Unit contribution</th><th>Expected volume</th><th>Revenue</th><th>Contribution</th></tr></thead><tbody id="breakdown"></tbody></table></section>
       <section><h2>Trade-offs</h2><div class="charts"><div class="chart" id="contributionChart"></div><div class="chart" id="allocationChart"></div></div></section>
+      <section><h2>Recommended stakeholder strategies</h2><p class="hint">Each recommendation selects its own price and channel mix; new prices are interpolated only between the survey-tested points.</p><table><thead><tr><th>Strategy</th><th>Objective</th><th>Price</th><th>Price basis</th><th>Channel mix</th><th>Margin</th><th>Payback</th></tr></thead><tbody id="strategies"></tbody></table></section>
       <section><h2>Launch timing</h2><div class="chart" id="timingChart"></div><div class="insights" id="insights"></div></section>
     </div>
   </main>
@@ -67,11 +68,18 @@
       Plotly.react('contributionChart',[{x:channels,y:result.channel_breakdown.map(x=>x.expected_contribution_eur),type:'bar',marker:{color:'#3c8dbc'}}],{title:'Contribution by channel',margin:{t:45,l:60,r:10,b:70},yaxis:{tickprefix:'€'}} ,{responsive:true});
       Plotly.react('allocationChart',[{labels:channels,values:result.channel_breakdown.map(x=>x.allocation_pct),type:'pie',hole:.4}],{title:'Marketing-budget allocation',margin:{t:45,l:10,r:10,b:10}},{responsive:true});
       renderTiming(value('month'));
+      renderStrategies();
     }
     function renderTiming(selected) {
       Plotly.react('timingChart',[{x:timing.months,y:timing.seasonality,name:'Seasonality index',mode:'lines+markers',line:{color:'#1565c0'}},{x:timing.months,y:timing.promotions,name:'Competitor promotions',type:'bar',yaxis:'y2',marker:{color:'#f0a43a'}}],{title:'Seasonal demand and competitor activity',margin:{t:45,l:50,r:50,b:40},yaxis:{title:'Seasonality (100 = average)'},yaxis2:{title:'Promotions',overlaying:'y',side:'right'},barmode:'overlay',legend:{orientation:'h'}},{responsive:true});
       const best = timing.seasonality.indexOf(Math.max(...timing.seasonality)); const quiet = timing.promotions.indexOf(Math.min(...timing.promotions)); const s = timing.seasonality[selected-1], p = timing.promotions[selected-1];
       document.getElementById('insights').innerHTML = `<div class="insight"><strong>Peak demand month</strong><br>${timing.months[best]} (index ${timing.seasonality[best].toFixed(0)})</div><div class="insight"><strong>Lowest competitor activity</strong><br>${timing.months[quiet]} (${timing.promotions[quiet]} promotions)</div><div class="insight"><strong>Selected timing</strong><br>${timing.months[selected-1]}: demand index ${s.toFixed(0)}, ${p} competitor promotions</div>`;
+    }
+    async function renderStrategies() {
+      try {
+        const rows = await getJSON(`/api/strategies?launch_month=${value('month')}&competitive_response=30`);
+        document.getElementById('strategies').innerHTML = rows.map(row => `<tr><td>${row.strategy}</td><td>${row.objective}</td><td>€${row.price_eur.toFixed(2)}</td><td>${row.price_basis}</td><td>${Object.entries(row.allocations).map(([name,share])=>`${name}: ${share}%`).join(' / ')}</td><td>${row.total_margin_pct.toFixed(1)}%</td><td>${row.payback_months.toFixed(1)} months</td></tr>`).join('');
+      } catch (error) { document.getElementById('strategies').innerHTML = `<tr><td colspan="7">Strategy recommendations unavailable: ${error.message}</td></tr>`; }
     }
     async function update() { try { document.getElementById('run').disabled=true; const result = await getJSON('/api/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input())}); render(result); } catch(error) { document.getElementById('notice').textContent=error.message; } finally { document.getElementById('run').disabled=false; } }
     async function boot() { const config = await getJSON('/api/config'); document.getElementById('price').innerHTML=config.prices.map(p=>`<option value="${p}" ${p===2.19?'selected':''}>€${p.toFixed(2)}</option>`).join(''); document.getElementById('month').innerHTML=config.months.map((m,i)=>`<option value="${i+1}" ${i===5?'selected':''}>${m}</option>`).join(''); timing=await getJSON('/api/launch-timing'); document.getElementById('run').addEventListener('click',update); update(); }
