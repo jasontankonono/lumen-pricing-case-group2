@@ -91,6 +91,33 @@ The app can be deployed for free using:
 
 Simply push the repository to GitHub and connect it to Streamlit Cloud for instant deployment.
 
+## Team Contributions
+
+### Monika
+
+- Co-developed the case analysis, strategic direction, and overall scope of the pricing simulator with the team.
+- Defined prompt-design guidelines, boundaries, and limitations to keep Codex outputs aligned with the case objectives.
+- Structured the solution around the relevant sub-categories, decision areas, and strategic dimensions.
+- Developed prompts for `lumen-launch-timeline.html`, translating recommendations into a phased launch plan by target segment.
+- Developed prompts for `TARGET_SEGMENTATION_STRATEGY.md`, covering evidence-based customer segmentation, city and channel mix, segment positioning, and risks.
+- Guided visualization enhancements for the pricing simulator to improve clarity, usability, and presentation.
+
+### Vittoria Monaci
+
+- Developed the Business Summary section, connecting simulator outputs to the wider Germany market-entry strategy.
+- Summarised the market opportunity and the core pricing and channel trade-offs.
+- Documented and interpreted the key metrics: revenue, expected volume, contribution margin, payback period, and LTV:CAC ratio.
+- Integrated findings on pricing, channels, launch timing, seasonality, and competitor activity into decision-ready insights.
+- Highlighted the simulator's key assumptions and limitations for decision-makers.
+
+### Jason
+
+- Led the integration and iterative development of the interactive pricing simulator and its decision-support features.
+- Coordinated deployment and technical troubleshooting across Vercel, Streamlit, GitHub, dependencies, and repository access.
+- Refined the pricing logic by introducing custom-price interpolation and distinct CFO, CMO, and Optimal strategy profiles.
+- Reviewed the financial outputs and identified key modelling limitations around market-size units, volume, and payback calculations.
+- Directed the evolution of the interface into a clearer executive decision cockpit for CMO/CFO strategy discussions.
+
 ## Notes
 
 - All calculations are based on the provided case data
