@@ -90,7 +90,7 @@ tam_energy = market_df[(market_df['dimension_type'] == 'subcategory') &
 # Sidebar navigation and controls
 st.sidebar.markdown('<div class="lumen-brand"><div class="lumen-mark">L</div><div><strong>LUMEN</strong><span>Germany entry cockpit</span></div></div>', unsafe_allow_html=True)
 st.sidebar.markdown('<p class="side-label">Navigate</p>', unsafe_allow_html=True)
-st.sidebar.radio("Navigate", ["Overview", "Channel Breakdown", "Trade-offs", "Scenario Comparison", "Launch Timing", "Business Summary", "About / Assumptions"], label_visibility="collapsed")
+page = st.sidebar.radio("Navigate", ["Overview", "Channel Breakdown", "Trade-offs", "Scenario Comparison", "Launch Timing", "Business Summary", "About / Assumptions"], label_visibility="collapsed")
 st.sidebar.divider()
 st.sidebar.markdown('<p class="side-label">Live simulation</p>', unsafe_allow_html=True)
 st.sidebar.header("Decision inputs")
@@ -389,9 +389,7 @@ with col8:
     )
 
 # Tabs for detailed analysis
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Channel Breakdown", "Trade-offs", "Scenario Comparison", "Launch Timing", "Sensitivity Analysis", "Business Summary", "About / Assumptions"])
-
-with tab1:
+if page == "Channel Breakdown":
     st.subheader("Channel Performance Breakdown")
 
     # Create detailed dataframe for display
@@ -441,7 +439,7 @@ with tab1:
             margin_pct = (best_margin['unit_contribution_eur'] / best_margin['net_price_eur']) * 100 if best_margin['net_price_eur'] > 0 else 0
             st.write(f"{best_margin['channel']}: {margin_pct:.1f}%")
 
-with tab2:
+if page == "Trade-offs":
     st.subheader("Trade-off Visualizations")
 
     # Create visualizations
@@ -535,7 +533,7 @@ with tab2:
         )
         st.plotly_chart(fig2, )
 
-with tab3:
+if page == "Scenario Comparison":
     st.subheader("Recommended stakeholder strategies")
     st.caption("Each recommendation includes its own price, channel mix, and objective. €1.99 and €2.39 are interpolated only within the tested €1.79–€2.59 range.")
     strategy_results = generate_strategy_recommendations(
@@ -562,7 +560,7 @@ with tab3:
     st.dataframe(comparison_df, hide_index=True)
     st.info("The profiles are intentionally distinct. If new research later supports the same price for two objectives, show that result rather than forcing a difference.")
 
-with tab4:
+if page == "Launch Timing":
     st.subheader("Launch Timing Analysis")
 
     # Create seasonality and competitor promotion visualization
@@ -672,7 +670,7 @@ with tab4:
     to the base acceptance rates in the financial projections above.
     """)
 
-with tab5:
+if page == "Business Summary":
     st.subheader("⚡ Sensitivity Analysis")
 
     st.markdown("""
@@ -929,7 +927,7 @@ with tab5:
             st.metric("LTV Sensitivity", ltv_sensitivity,
                      help="How much contribution changes with LTV assumptions")
 
-with tab6:
+if page == "Business Summary":
     st.markdown('<div class="summary-card"><div class="eyebrow">Executive readout</div><h3>Business summary &amp; financial viability</h3><p>Use this section to prepare the CMO/CFO discussion: it combines the live case economics with break-even and ROI implications.</p></div>', unsafe_allow_html=True)
     try:
         with open('business_summary.txt', 'r', encoding='utf-8') as summary_file:
@@ -1148,7 +1146,7 @@ with tab6:
 
     st.plotly_chart(fig, use_container_width=True)
 
-with tab7:
+if page == "About / Assumptions":
     st.subheader("About This Simulator")
 
     st.markdown("""
@@ -1204,8 +1202,8 @@ with tab7:
     """)
 
     st.markdown("---")
-    st.markdown("*Built for the ATELIA × ESCP LUMEN Pricing & Go-to-Market Case Competition*")
+    st.markdown("*Built for the Digital Spark Seminar*")
 
 # Footer
 st.markdown("---")
-st.markdown("*LUMEN Germany Market Entry Simulator - Built for the ATELIA × ESCP Case Competition*")
+st.markdown("*LUMEN Germany Market Entry Simulator - Built for the Digital Spark Seminar*")
