@@ -4,21 +4,33 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-from strategy_profiles import generate_strategy_recommendations
+from strategy_profiles import generate_strategy_recommendations, interpolate_price_data
 
 # Page configuration
 st.set_page_config(
-    page_title="LUMEN Germany Market Entry Simulator",
-    page_icon="🥤",
-    layout="wide"
+    page_title="LUMEN | Germany Entry Cockpit",
+    page_icon="L",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Title and description
-st.title("🥤 LUMEN Germany Market Entry Simulator")
 st.markdown("""
-Explore the trade-offs between price, channel mix, and market outcomes for LUMEN's entry into the German functional beverage market.
-Adjust the parameters below to see how different strategies impact contribution margin, revenue, and payback period.
-""")
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root { --navy:#102b3d; --teal:#0d6b68; --mint:#9ad8c0; --gold:#b99243; --coral:#d36d61; --cream:#f7f4ee; --paper:#fffdfa; --ink:#183244; --muted:#647582; --line:#dce4e1; }
+.stApp { background:var(--cream); color:var(--ink); font-family:Inter, "Avenir Next", sans-serif; }
+#MainMenu, footer { visibility:hidden; }.block-container { max-width:1440px; padding:2.4rem 3rem 4rem; }
+[data-testid="stSidebar"] { background:var(--navy); border-right:0; } [data-testid="stSidebar"] * { color:#edf5f3; }
+[data-testid="stSidebar"] .stRadio label { border-radius:8px; padding:.36rem .45rem; font-size:.84rem; } [data-testid="stSidebar"] .stRadio label:hover { background:rgba(154,216,192,.14); }
+[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] { background:var(--mint); } [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div, [data-testid="stSidebar"] .stNumberInput input { background:#18394b; border-color:rgba(255,255,255,.25); } [data-testid="stSidebar"] hr { border-color:rgba(255,255,255,.16); }
+.lumen-brand { display:flex; align-items:center; gap:.7rem; padding:.35rem 0 1.15rem; border-bottom:1px solid rgba(255,255,255,.16); }.lumen-mark { width:2rem; height:2rem; display:grid; place-items:center; border-radius:.55rem; background:#9ad8c0; color:#102b3d; font-weight:700; }.lumen-brand strong{letter-spacing:.09em;font-size:.9rem}.lumen-brand span{display:block;color:#b8cbd0;font-size:.72rem;margin-top:.1rem}.side-label,.eyebrow{color:#b99243!important;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:700}
+.hero { padding:1.55rem 1.8rem; margin:0 0 1.35rem; border:1px solid #c8ddd6; border-radius:1rem; background:#e8f3ef; }.hero h1{margin:.25rem 0;font-size:2.25rem;letter-spacing:-.05em;color:#102b3d}.hero p{max-width:760px;margin:.35rem 0 0;color:#526770}.hero .eyebrow{color:#0d6b68!important}
+h1,h2,h3 { color:#102b3d; letter-spacing:-.025em; } h2 { margin-top:1.2rem!important; } [data-testid="stMetric"] { padding:1rem; background:var(--paper); border:1px solid var(--line); border-radius:.8rem; box-shadow:0 3px 10px rgba(20,48,60,.035); } [data-testid="stMetricLabel"] { color:var(--muted); font-size:.75rem; } [data-testid="stMetricValue"] { color:var(--navy); font-size:1.45rem; }
+[data-baseweb="tab-list"] { gap:.35rem; border-bottom:1px solid var(--line); } [data-baseweb="tab"] { height:2.45rem; padding:0 .9rem; color:var(--muted); font-size:.8rem; } [aria-selected="true"][data-baseweb="tab"] { color:var(--teal); border-bottom-color:var(--teal)!important; }
+[data-testid="stDataFrame"], .stPlotlyChart { border:1px solid var(--line); border-radius:.8rem; background:var(--paper); padding:.25rem; box-shadow:0 3px 10px rgba(20,48,60,.025); }.stButton>button, .stDownloadButton>button { border:0; border-radius:.5rem; background:var(--teal); color:white; font-weight:600; }.stButton>button:hover,.stDownloadButton>button:hover { background:#095a57; color:white; }.summary-card { padding:1.3rem 1.5rem; border:1px solid #c8ddd6; border-radius:.85rem; background:#eef6f3; }.summary-card h3{color:var(--teal);margin:.2rem 0}.summary-card p{color:#526770;margin:.4rem 0}
+</style>
+<div class="hero"><div class="eyebrow">Market-entry decision cockpit</div><h1>LUMEN Germany pricing &amp; channel strategy</h1><p>Bring premium positioning, cash efficiency, and market-entry ambition into one credible CMO/CFO decision view.</p></div>
+""", unsafe_allow_html=True)
 
 # Load data functions
 @st.cache_data
@@ -76,14 +88,19 @@ tam_energy = market_df[(market_df['dimension_type'] == 'subcategory') &
                        (market_df['name'] == 'Energy / focus') &
                        (market_df['year'] == 2026)]['value'].values[0]
 
-# Sidebar for inputs
-st.sidebar.header("🎛️ Simulation Controls")
+# Sidebar navigation and controls
+st.sidebar.markdown('<div class="lumen-brand"><div class="lumen-mark">L</div><div><strong>LUMEN</strong><span>Germany entry cockpit</span></div></div>', unsafe_allow_html=True)
+st.sidebar.markdown('<p class="side-label">Navigate</p>', unsafe_allow_html=True)
+page = st.sidebar.radio("Navigate", ["Overview", "Channel Breakdown", "Trade-offs", "Scenario Comparison", "Launch Timing", "Business Summary", "About / Assumptions"], label_visibility="collapsed")
+st.sidebar.divider()
+st.sidebar.markdown('<p class="side-label">Live simulation</p>', unsafe_allow_html=True)
+st.sidebar.header("Decision inputs")
 
 # Price selection method
 price_method = st.sidebar.radio(
     "Price Selection Method",
     ["Predefined Price Points", "Custom Price Range"],
-    help="Choose between testing the three candidate prices or setting a custom price"
+    help="Custom prices are linearly interpolated from the validated €1.79, €2.19, and €2.59 survey results."
 )
 
 if price_method == "Predefined Price Points":
@@ -228,11 +245,7 @@ def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, sea
     price_data = price_df[price_df['price_eur'] == price]
 
     if len(price_data) == 0:
-        # If exact price not found, interpolate or use closest
-        # For simplicity, we'll use the closest predefined price
-        closest_price = price_df.iloc[(price_df['price_eur'] - price).abs().argsort()[:1]]['price_eur'].values[0]
-        price_data = price_df[price_df['price_eur'] == closest_price]
-        price = closest_price
+        price_data = interpolate_price_data(price_df, price)
 
     # Initialize results
     results = {
@@ -311,7 +324,8 @@ results = calculate_outcomes(
 )
 
 # Display results
-st.header("📊 Simulation Results")
+st.markdown('<div class="eyebrow">Core decision metrics</div>', unsafe_allow_html=True)
+st.header("What the plan delivers")
 
 # Key metrics row
 col1, col2, col3, col4 = st.columns(4)
@@ -376,9 +390,7 @@ with col8:
     )
 
 # Tabs for detailed analysis
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["📈 Channel Breakdown", "📊 Visualizations", "📋 Scenario Comparison", "🗓️ Launch Timing", "⚡ Sensitivity Analysis", "💰 Break-even & ROI", "ℹ️ About"])
-
-with tab1:
+if page == "Channel Breakdown":
     st.subheader("Channel Performance Breakdown")
 
     # Create detailed dataframe for display
@@ -428,7 +440,7 @@ with tab1:
             margin_pct = (best_margin['unit_contribution_eur'] / best_margin['net_price_eur']) * 100 if best_margin['net_price_eur'] > 0 else 0
             st.write(f"{best_margin['channel']}: {margin_pct:.1f}%")
 
-with tab2:
+if page == "Trade-offs":
     st.subheader("Trade-off Visualizations")
 
     # Create visualizations
@@ -450,13 +462,13 @@ with tab2:
 
         # Contribution bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=contributions, name="Contribution", marker_color='lightblue'),
+            go.Bar(x=channels, y=contributions, name="Contribution", marker_color='#0d6b68'),
             row=1, col=1
         )
 
         # Revenue bar chart
         fig.add_trace(
-            go.Bar(x=channels, y=revenues, name="Revenue", marker_color='lightgreen'),
+            go.Bar(x=channels, y=revenues, name="Revenue", marker_color='#9ad8c0'),
             row=1, col=2
         )
 
@@ -478,14 +490,14 @@ with tab2:
 
         fig.add_trace(
             go.Scatter(x=volume_data, y=margin_data, mode='lines+markers',
-                      name="Margin-Volume Trade-off", line=dict(color='orange')),
+                      name="Margin-Volume Trade-off", line=dict(color='#b99243')),
             row=2, col=2
         )
 
         # Add current point
         fig.add_trace(
             go.Scatter(x=[results['total_units']], y=[results['total_margin_pct']],
-                      mode='markers', marker=dict(size=12, color='red'),
+                      mode='markers', marker=dict(size=12, color='#d36d61'),
                       name="Current Selection"),
             row=2, col=2
         )
@@ -510,9 +522,9 @@ with tab2:
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=price_points, y=acceptance_rates,
                                  mode='lines+markers', name='Acceptance Rate',
-                                 line=dict(color='blue')))
+                                 line=dict(color='#0d6b68')))
         fig2.add_trace(go.Scatter(x=[selected_price], y=[results['weighted_acceptance']*100],
-                                 mode='markers', marker=dict(size=12, color='red'),
+                                 mode='markers', marker=dict(size=12, color='#d36d61'),
                                  name='Selected Price'))
         fig2.update_layout(
             title="Price vs Acceptance Rate",
@@ -522,7 +534,7 @@ with tab2:
         )
         st.plotly_chart(fig2, )
 
-with tab3:
+if page == "Scenario Comparison":
     st.subheader("Recommended stakeholder strategies")
     st.caption("Each recommendation includes its own price, channel mix, and objective. €1.99 and €2.39 are interpolated only within the tested €1.79–€2.59 range.")
     strategy_results = generate_strategy_recommendations(
@@ -549,7 +561,7 @@ with tab3:
     st.dataframe(comparison_df, hide_index=True)
     st.info("The profiles are intentionally distinct. If new research later supports the same price for two objectives, show that result rather than forcing a difference.")
 
-with tab4:
+if page == "Launch Timing":
     st.subheader("Launch Timing Analysis")
 
     # Create seasonality and competitor promotion visualization
@@ -571,14 +583,14 @@ with tab4:
     # Add seasonality index line
     fig.add_trace(
         go.Scatter(x=month_names, y=seasonality_idx, mode='lines+markers',
-                   name='Seasonality Index (100=avg)', line=dict(color='blue', width=3)),
+                   name='Seasonality Index (100=avg)', line=dict(color='#0d6b68', width=3)),
         secondary_y=False,
     )
 
     # Add competitor promotions as bars
     fig.add_trace(
         go.Bar(x=month_names, y=promo_counts, name='Competitor Promo Count',
-               marker_color='rgba(255, 165, 0, 0.6)', opacity=0.7),
+               marker_color='rgba(185, 146, 67, 0.68)', opacity=0.7),
         secondary_y=True,
     )
 
@@ -659,7 +671,7 @@ with tab4:
     to the base acceptance rates in the financial projections above.
     """)
 
-with tab5:
+if page == "Business Summary":
     st.subheader("⚡ Sensitivity Analysis")
 
     st.markdown("""
@@ -916,8 +928,20 @@ with tab5:
             st.metric("LTV Sensitivity", ltv_sensitivity,
                      help="How much contribution changes with LTV assumptions")
 
-with tab6:
-    st.subheader("💰 Break-even & ROI Analysis")
+if page == "Business Summary":
+    st.markdown('<div class="summary-card"><div class="eyebrow">Executive readout</div><h3>Business summary &amp; financial viability</h3><p>Use this section to prepare the CMO/CFO discussion: it combines the live case economics with break-even and ROI implications.</p></div>', unsafe_allow_html=True)
+    try:
+        with open('business_summary.txt', 'r', encoding='utf-8') as summary_file:
+            st.download_button(
+                "Download executive business summary",
+                data=summary_file.read(),
+                file_name="LUMEN-business-summary.txt",
+                mime="text/plain",
+            )
+    except FileNotFoundError:
+        st.info("The business-summary download is unavailable in this deployment.")
+
+    st.subheader("Break-even & ROI Analysis")
 
     st.markdown("""
     This section helps you understand the financial viability of different strategies by calculating:
@@ -1123,7 +1147,7 @@ with tab6:
 
     st.plotly_chart(fig, use_container_width=True)
 
-with tab7:
+if page == "About / Assumptions":
     st.subheader("About This Simulator")
 
     st.markdown("""
@@ -1179,8 +1203,8 @@ with tab7:
     """)
 
     st.markdown("---")
-    st.markdown("*Built for the ATELIA × ESCP LUMEN Pricing & Go-to-Market Case Competition*")
+    st.markdown("*Built for the Digital Spark Seminar*")
 
 # Footer
 st.markdown("---")
-st.markdown("*LUMEN Germany Market Entry Simulator - Built for the ATELIA × ESCP Case Competition*")
+st.markdown("*LUMEN Germany Market Entry Simulator - Built for the Digital Spark Seminar*")
