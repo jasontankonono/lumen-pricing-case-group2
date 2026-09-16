@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-from strategy_profiles import generate_strategy_recommendations
+from strategy_profiles import generate_strategy_recommendations, interpolate_price_data
 
 # Page configuration
 st.set_page_config(
@@ -83,7 +83,7 @@ st.sidebar.header("🎛️ Simulation Controls")
 price_method = st.sidebar.radio(
     "Price Selection Method",
     ["Predefined Price Points", "Custom Price Range"],
-    help="Choose between testing the three candidate prices or setting a custom price"
+    help="Custom prices are linearly interpolated from the validated €1.79, €2.19, and €2.59 survey results."
 )
 
 if price_method == "Predefined Price Points":
@@ -228,11 +228,7 @@ def calculate_outcomes(price, dtc_pct, retail_pct, gym_pct, acceptance_mult, sea
     price_data = price_df[price_df['price_eur'] == price]
 
     if len(price_data) == 0:
-        # If exact price not found, interpolate or use closest
-        # For simplicity, we'll use the closest predefined price
-        closest_price = price_df.iloc[(price_df['price_eur'] - price).abs().argsort()[:1]]['price_eur'].values[0]
-        price_data = price_df[price_df['price_eur'] == closest_price]
-        price = closest_price
+        price_data = interpolate_price_data(price_df, price)
 
     # Initialize results
     results = {

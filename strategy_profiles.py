@@ -54,6 +54,32 @@ def _interpolate(channel_rows: pd.DataFrame, price: float, column: str) -> float
     return float(below[column] + share * (above[column] - below[column]))
 
 
+def interpolate_price_data(price_df: pd.DataFrame, price: float) -> pd.DataFrame:
+    """Create channel economics for any price inside the survey-tested range.
+
+    This is deliberately interpolation, not a nearest-price fallback: a €2.31
+    selection gets economics between the €2.19 and €2.59 observations.
+    """
+    lower, upper = float(price_df["price_eur"].min()), float(price_df["price_eur"].max())
+    if not lower <= price <= upper:
+        raise ValueError(f"Price must be within the validated €{lower:.2f}–€{upper:.2f} range.")
+
+    rows = []
+    for channel in price_df["channel"].unique():
+        channel_rows = price_df[price_df["channel"] == channel]
+        net_price = _interpolate(channel_rows, price, "net_price_to_lumen_eur")
+        unit_contribution = _interpolate(channel_rows, price, "unit_contribution_eur")
+        rows.append({
+            "price_eur": price,
+            "channel": channel,
+            "estimated_acceptance_pct_of_survey": _interpolate(channel_rows, price, "estimated_acceptance_pct_of_survey"),
+            "net_price_to_lumen_eur": net_price,
+            "unit_contribution_eur": unit_contribution,
+            "contribution_margin_pct": unit_contribution / net_price * 100 if net_price else 0,
+        })
+    return pd.DataFrame(rows)
+
+
 def calculate_profile_outcome(
     price_df: pd.DataFrame,
     tam_eur: float,

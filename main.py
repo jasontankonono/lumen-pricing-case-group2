@@ -6,7 +6,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from strategy_profiles import generate_strategy_recommendations
+from strategy_profiles import generate_strategy_recommendations, interpolate_price_data
 
 
 ROOT = Path(__file__).parent
@@ -62,9 +62,11 @@ def calculate_outcomes(inputs: SimulationInput) -> dict:
         "Retail/Grocery": inputs.retail_pct / total,
         "Gym & Office": inputs.gym_pct / total,
     }
-    price_options = sorted(float(price) for price in price_df["price_eur"].unique())
-    selected_price = min(price_options, key=lambda value: abs(value - inputs.price))
-    price_data = price_df[price_df["price_eur"] == selected_price]
+    selected_price = inputs.price
+    try:
+        price_data = interpolate_price_data(price_df, selected_price)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     seasonal_factor = float(
         seasonality_df.loc[seasonality_df["month"] == inputs.launch_month, "seasonality_index_100_avg"].iloc[0]
         / 100
