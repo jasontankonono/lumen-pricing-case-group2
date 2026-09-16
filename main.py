@@ -6,6 +6,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from strategy_profiles import generate_strategy_recommendations, interpolate_price_data
 
 
 ROOT = Path(__file__).parent
@@ -32,6 +33,7 @@ marketing_df = read_csv("marketing_funnel_monthly.csv")
 market_df = read_csv("market_context.csv")
 seasonality_df = read_csv("seasonality_and_weather.csv")
 competitor_df = read_csv("competitor_price_history.csv")
+competitor_prices_df = read_csv("competitor_prices_by_channel.csv")
 
 recent_marketing = marketing_df.tail(6)
 avg_cac = float(recent_marketing["cac_eur"].mean())
@@ -60,9 +62,11 @@ def calculate_outcomes(inputs: SimulationInput) -> dict:
         "Retail/Grocery": inputs.retail_pct / total,
         "Gym & Office": inputs.gym_pct / total,
     }
-    price_options = sorted(float(price) for price in price_df["price_eur"].unique())
-    selected_price = min(price_options, key=lambda value: abs(value - inputs.price))
-    price_data = price_df[price_df["price_eur"] == selected_price]
+    selected_price = inputs.price
+    try:
+        price_data = interpolate_price_data(price_df, selected_price)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     seasonal_factor = float(
         seasonality_df.loc[seasonality_df["month"] == inputs.launch_month, "seasonality_index_100_avg"].iloc[0]
         / 100
@@ -126,6 +130,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/api/business-summary")
+def business_summary() -> FileResponse:
+    """Download the executive-ready business summary."""
+    return FileResponse(ROOT / "business_summary.txt", filename="LUMEN-business-summary.txt", media_type="text/plain")
+
+
 @app.get("/api/config")
 def config() -> dict:
     return {
@@ -142,6 +152,20 @@ def launch_timing() -> dict:
     ]
     promotions = [int(promo_by_month.get(month, 0)) for month in range(1, 13)]
     return {"months": MONTHS, "seasonality": seasonality, "promotions": promotions}
+
+
+@app.get("/api/strategies")
+def strategies(launch_month: int = 6, competitive_response: int = 30) -> list[dict]:
+    """Return distinct CFO, CMO, and balanced strategy recommendations."""
+    if not 1 <= launch_month <= 12 or not 0 <= competitive_response <= 100:
+        raise HTTPException(status_code=422, detail="Invalid launch month or competitive response.")
+    seasonal_factor = float(
+        seasonality_df.loc[seasonality_df["month"] == launch_month, "seasonality_index_100_avg"].iloc[0] / 100
+    )
+    competitive_impact = 1 - (competitive_response / 100 * 0.5)
+    return generate_strategy_recommendations(
+        price_df, competitor_prices_df, tam_energy, avg_cac, avg_ltv, seasonal_factor, competitive_impact
+    )
 
 
 @app.post("/api/calculate")
