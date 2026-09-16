@@ -10,7 +10,8 @@ from strategy_profiles import generate_strategy_recommendations, interpolate_pri
 st.set_page_config(
     page_title="LUMEN | Germany Entry Cockpit",
     page_icon="L",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
@@ -18,7 +19,7 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 :root { --navy:#102b3d; --teal:#0d6b68; --mint:#9ad8c0; --gold:#b99243; --coral:#d36d61; --cream:#f7f4ee; --paper:#fffdfa; --ink:#183244; --muted:#647582; --line:#dce4e1; }
 .stApp { background:var(--cream); color:var(--ink); font-family:Inter, "Avenir Next", sans-serif; }
-#MainMenu, footer, header { visibility:hidden; }.block-container { max-width:1440px; padding:2.4rem 3rem 4rem; }
+#MainMenu, footer { visibility:hidden; }.block-container { max-width:1440px; padding:2.4rem 3rem 4rem; }
 [data-testid="stSidebar"] { background:var(--navy); border-right:0; } [data-testid="stSidebar"] * { color:#edf5f3; }
 [data-testid="stSidebar"] .stRadio label { border-radius:8px; padding:.36rem .45rem; font-size:.84rem; } [data-testid="stSidebar"] .stRadio label:hover { background:rgba(154,216,192,.14); }
 [data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] { background:var(--mint); } [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div, [data-testid="stSidebar"] .stNumberInput input { background:#18394b; border-color:rgba(255,255,255,.25); } [data-testid="stSidebar"] hr { border-color:rgba(255,255,255,.16); }
