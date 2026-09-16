@@ -130,6 +130,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/api/business-summary")
+def business_summary() -> FileResponse:
+    """Download the executive-ready business summary."""
+    return FileResponse(ROOT / "business_summary.txt", filename="LUMEN-business-summary.txt", media_type="text/plain")
+
+
 @app.get("/api/config")
 def config() -> dict:
     return {
